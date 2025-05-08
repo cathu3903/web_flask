@@ -17,6 +17,8 @@ os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 
 
 class VideoCamera(object):
+    current_raw_frame = None      # recording the current frame, for the image processing
+    current_encoded_frame = None    # For the stream transmission
     def __init__(self):
         self.video = cv2.VideoCapture(0)
 
@@ -25,9 +27,12 @@ class VideoCamera(object):
 
     def get_frame(self):
         (self.grabbed, self.frame) = self.video.read()
+        VideoCamera.current_raw_frame = self.frame.copy()
         image = self.frame
-        cv2.putText(image, "video", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0))
+        # cv2.putText(image, "video", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0))
         ret, jpg = cv2.imencode('.jpg', image)
+        if ret:
+            VideoCamera.current_encoded_frame = jpg
         return jpg.tobytes()
 
 class Annotations(db.Model):
@@ -56,8 +61,7 @@ class Annotations(db.Model):
 def new_annotation():
     data = request.form.get('annotation_data')
     # resolve and save the data
-    print(data)
-    data_dict = ast.literal_eval(data)
+    data_dict = ast.literal_eval(data)      # transfer into dict type
     print(data_dict)
 
     new_annotation = Annotations(
@@ -69,6 +73,23 @@ def new_annotation():
         n = data_dict['n'],
         lv = data_dict['stainLevel']
     )
+    if VideoCamera.current_raw_frame is not None:     # If the current_img in the class is not null, then save the image
+        new_annotation.img_l = VideoCamera.current_encoded_frame
+        print(VideoCamera.current_raw_frame.shape)
+        y_center = int(new_annotation.y)
+        x_center = int(new_annotation.x)
+        height = int(new_annotation.h)
+        width = int(new_annotation.w)
+
+        y1 = int(y_center - height / 2)
+        y2 = int(y_center + height / 2)
+        x1 = int(x_center - width / 2)
+        x2 = int(x_center + width / 2)
+        # cut the image
+        cropped_image = VideoCamera.current_raw_frame[y1:y2, x1:x2]
+        # save to the database
+        _, image_encoded = cv2.imencode('.jpg', cropped_image)
+        new_annotation.img_s = image_encoded.tobytes()
     db.session.add(new_annotation)
     db.session.commit()
     return jsonify(success = True)
