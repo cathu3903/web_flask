@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Annotation</title>
+    <link rel = "stylesheet" href= "{{ url_for('static', filename='css/style.css')}}"> </link>
+</head>
+<body>
+    <div id="video_container" class = "video_container">
+        <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream">
+        <canvas id="grid_overlay" class="grid_overlay"></canvas>
+    </div>
+    <div id = "context_menu" class = "dropdown-content">
+        <a href="#" data-color = "green">Green</a>
+        <a href="#" data-color = "yellow">Yellow</a>
+        <a href="#" data-color = "blue">Blue</a>
+        <a href="#" data-color = "red">Red</a>
+    </div>
+    <br>
+    <button onclick="finishAnnotation()">Finish and generate JSON</button>
+    <button onclick="play_pause()">Play/Pause</button>
+    <div id="download-link"></div>
+
+    <script src = '../static/js/video_annotation.js'> </script>
+    <script>
+        const M = {{m}};
+        const N = {{n}};
+    </script>
+
+    <div id = "status"> </div>
+
+    <form id = "annotation_form" action = "/new_annotation" method = "POST">
+        <input type = "hidden" id = "annotation_data" name = "annotation_data">
+    </form>
+
+</body>
+</html>

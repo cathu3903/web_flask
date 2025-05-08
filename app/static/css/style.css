@@ -1,0 +1,64 @@
+/* style.css */
+
+#video-container {
+    position: relative;
+    width: auto;
+    height: auto;
+}
+/*
+#video_player {
+    position: absolute;
+    left: auto;
+    top: auto;
+    object-fit: cover;
+    z-index: 1;
+}
+
+.grid-overlay {
+    position: relative;
+    left: auto;
+    top: auto;
+    pointer-events: none;
+    z-index: 2;
+} */
+
+#video_player {
+    position: absolute;
+    left: auto;
+    top: auto;
+    object-fit: cover;
+    z-index: 1;
+}
+
+.grid_overlay {
+    position: relative;
+    left: auto;
+    top: auto;
+    pointer-events: none;
+    z-index: 2;
+}
+.dropdown {
+    position: relative;
+    display: inline-none;
+}
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    padding: 12px 16px;
+    z-index: 1;
+}
+.dropdown-content a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    background-color: aquamarine;
+}
+
+.dropdown-content a:hover {background-color: #f1f1f1}
+
+.annotation_form {
+    display: none;
+}
