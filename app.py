@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, send_from_directory, Response, jsonify, url_for
+from flask import Flask, render_template, request, redirect, send_from_directory, Response, jsonify, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 import time
 import cv2
 import os
 import ast
+import time, json
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///annotations.sqlite3'
@@ -112,6 +113,33 @@ def gen(camera):
 @app.route('/video_feed')   # return video stream response
 def video_feed():
     return Response(gen(VideoCamera()), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+@app.route('/generate_json', methods=['GET', 'POST'])
+def generate_json():
+    # Generate JSON data
+    annotations = Annotations.query.with_entities(Annotations.id, Annotations.x, Annotations.y, Annotations.w, Annotations.h).all()
+
+    # Convert data to JSON string
+    result = [
+        {
+            "id": a.id,
+            "x_center": a.x,
+            "y_center": a.y,
+            "width": a.w,
+            "height": a.h
+        } for a in annotations
+    ]
+    json_data = jsonify(result)
+
+    file_path = os.path.join('annotation_data', time.strftime("%Y-%m-%d_%H_%M_%S",time.localtime()) +'.json')
+    # Generate a json file in server
+    with open(file_path, 'w') as f:
+        json.dump(result, f, indent = 2)
+
+    # Return JSON data
+    return json_data
+
 
 if __name__ == '__main__':
     with app.app_context():

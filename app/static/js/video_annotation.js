@@ -95,19 +95,19 @@ function change_color(e)
         let color;
         let stain_level;
         switch(e.target.getAttribute("data-color")) {
-            case "red":
+            case "4 red":
                 color = "rgba(255, 0, 0, 0.5)";
                 stain_level = 4;
                 break;
-            case "green":
+            case "1 green":
                 color = "rgba(0, 255, 0, 0.5)";
                 stain_level = 1;
                 break;
-            case "blue":
+            case "3 blue":
                 color = "rgba(0, 0, 255, 0.5)";
                 stain_level = 3;
                 break;
-            case "yellow":
+            case "2 yellow":
                 color = "rgba(255, 255, 0, 0.5)";
                 stain_level = 2;
             default:
