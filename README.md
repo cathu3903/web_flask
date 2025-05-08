@@ -5,8 +5,8 @@ Technical points:
 - Canvas in html / JavaScript to render the grids
 - JavaScript catches up the click events
 - Flask-SQLAlchemy for the CRUD operations
-- Used fetch API for front-end interactions
-- * JSON generation button * To Do
+- Used fetch API for asynchronously upload the forms
+- ** JSON generation button ** To Do
  
 # 在线注释工具
 仅用于未来的人工智能培训项目
@@ -15,5 +15,5 @@ Technical points:
 - HTML 画布/JavaScript 渲染网格
 - JavaScript 捕捉点击事件
 - Flask-SQLAlchemy 用于 CRUD 操作
-- 使用 fetch API 进行前端交互
-- JSON 生成按钮
+- 使用 fetch API 进行异步提交表单
+- ** JSON 生成按钮 **
