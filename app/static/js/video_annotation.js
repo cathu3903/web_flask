@@ -1,6 +1,7 @@
 let annotations = [];
 const videoElem = document.getElementById("video_player");
 let currentGrid = null;
+let isContextMenuJustShown = false;
 
 
 function initGrid(m , n)
@@ -55,8 +56,9 @@ function click_event(event) {
         contextMenu.style.display = "inline";
         contextMenu.style.left = event.clientX + "px";
         contextMenu.style.top = event.clientY + "px";
+        isContextMenuJustShown = true;
+        setTimeout(() => {isContextMenuJustShown = false;}, 100);
 
-        // stop
         window.addEventListener("contextmenu", function (e) {
             e.preventDefault();
         });
@@ -95,21 +97,24 @@ function change_color(e)
         let color;
         let stain_level;
         switch(e.target.getAttribute("data-color")) {
-            case "4 red":
+            case "red":
                 color = "rgba(255, 0, 0, 0.5)";
                 stain_level = 4;
                 break;
-            case "1 green":
+            case "green":
                 color = "rgba(0, 255, 0, 0.5)";
                 stain_level = 1;
                 break;
-            case "3 blue":
+            case "blue":
                 color = "rgba(0, 0, 255, 0.5)";
                 stain_level = 3;
                 break;
-            case "2 yellow":
+            case "yellow":
                 color = "rgba(255, 255, 0, 0.5)";
                 stain_level = 2;
+            case "_cancel_":
+                this.style.display = "none";
+                return true;
             default:
                 color = "rgba(255, 255, 0, 0.5)";
                 stain_level = 2;
@@ -139,44 +144,75 @@ function change_color(e)
                 n: n,
                 stainLevel: stain_level
             };
-            annotations.push(annotation);
+            // annotations.push(annotation);
             submitAnnotation(annotation);
 
             this.style.display = "none";
-
-            // Stopped in 4.29 afternoon
-            // description: send the annotation to the server, the server creates a log in the database, and process the image, and return the annotation id
-            // var xhr = new XMLHttpRequest();
-            // xhr.open("POST", "/new_annotation", true);
-            // xhr.setRequestHeader("Content-Type", "application/")
         }
 
     }
 }
 
-document.getElementById("context_menu").addEventListener("click", change_color);
+function generateJSON(){
+    // ask the server to generate the JSON file
+    fetch('/generate_json', {
+        method: 'POST',
+        body: JSON.stringify({
+            'Give me the JSON file': 'If you want it, then you will have to take it'
+        }),
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        window.alert("Generated JSON file on server!");
+    })
+    .then(data => {
+        console.log(data);
+    })
+    .catch(error => {
+        console.error(error);
+    })
+}
 
-document.getElementById('video_container').addEventListener('click', click_event);
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoaded to secure the listen functions are binded after the DOM loaded
+{
+    const contextMenu = document.getElementById('context_menu');
+    const container = document.getElementById('video_container');
+
+    // Click outside to hide the window
+    document.addEventListener('click', function (event){
+        if(isContextMenuJustShown) {
+            isContextMenuJustShown = false;
+            return;
+        }
+
+        const isClickInsideMenu = contextMenu.contains(event.target);
+        if(!isClickInsideMenu && contextMenu.style.display !== 'none')
+        {
+            contextMenu.style.display = 'none';
+        }
+    });
+
     videoElem.onload = function() {     // once the video stream is loaded
         initGrid(M, N);                 // initialize the grid
     };
+
+    contextMenu.addEventListener("click", change_color);
+
+    document.getElementById('video_container').addEventListener('click', click_event);
+
+    // add a listener to adjust the overlay of the button below the video window
+    videoElem.addEventListener("loadedmetadata", () =>{
+        container.style.height = `${videoElem.offsetHeight}px`;     // get the html element of the video by template literals
+    });
+    // check the resize event
+    window.addEventListener("resize", () =>{
+        if( videoElem.offsetWidth > 0){
+            container.style.height = `${videoElem.offsetHeight}px`;
+        }
+    });
 });
 
-// document.addEventListener('DOMContentLoaded', (e) =>{
-//     const dropdownButton = document.getElementById('dropdownButton');
-//     const  dropdownMenu = document.getElementById('dropdownMenu');
 
-//     dropdownButton.addEventListener('click', ()=>{
-//         // change the visibility of the dropdown menu
-//         dropdownMenu.style.display = (dropdownMenu.style.display === 'block' ? 'none' : 'block');
-//     });
-
-    // hide the dropdown menu when the user clicks outside of it
-//     window.addEventListener('click', (e)=>{
-//         if(!dropdownButton.contains(e.target) && !dropdownMenu.contains(e.target)){
-//             dropdownMenu.style.display = 'none';
-//         }
-//     });
-// });

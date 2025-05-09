@@ -21,20 +21,24 @@ class VideoCamera(object):
     current_raw_frame = None      # recording the current frame, for the image processing
     current_encoded_frame = None    # For the stream transmission
     def __init__(self):
-        self.video = cv2.VideoCapture(0)
+        self.video = cv2.VideoCapture(0)    # read from the camera stream
+        # self.video = cv2.VideoCapture('app/static/video/sample.mp4')  # read from the video file
 
     def __del__(self):
         self.video.release()
 
     def get_frame(self):
         (self.grabbed, self.frame) = self.video.read()
-        VideoCamera.current_raw_frame = self.frame.copy()
-        image = self.frame
+        if self.grabbed:
+            VideoCamera.current_raw_frame = self.frame.copy()
+            image = self.frame
         # cv2.putText(image, "video", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0))
-        ret, jpg = cv2.imencode('.jpg', image)
-        if ret:
-            VideoCamera.current_encoded_frame = jpg
-        return jpg.tobytes()
+            ret, jpg = cv2.imencode('.jpg', image)
+            if ret:
+                VideoCamera.current_encoded_frame = jpg
+            return jpg.tobytes()
+        else:
+            return b'No frame'
 
 class Annotations(db.Model):
     id = db.Column('annotation_id', db.Integer, primary_key = True)

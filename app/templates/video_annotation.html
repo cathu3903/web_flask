@@ -5,28 +5,34 @@
     <link rel = "stylesheet" href= "{{ url_for('static', filename='css/style.css')}}"> </link>
 </head>
 <body>
-    <div id="video_container" class = "video_container">
-        <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream">
-        <canvas id="grid_overlay" class="grid_overlay"></canvas>
+    <div class="main_container">
+        <div id="video_container" class = "video_container">
+            <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream">
+            <canvas id="grid_overlay" class="grid_overlay"></canvas>
+        </div>
+        <div class="below_video_container">
+            <div id = "status"> </div>
+            <div class="button_group">
+                <button id="generateJSON" onclick="generateJSON()">Finish and generate JSON</button>
+                <button id="play_pause" onclick="play_pause()">Play/Pause</button>
+            </div>
+        </div>
     </div>
+
     <div id = "context_menu" class = "dropdown-content">
-        <a href="#" data-color = "1 green">Green</a>
-        <a href="#" data-color = "2 yellow">Yellow</a>
-        <a href="#" data-color = "3 blue">Blue</a>
-        <a href="#" data-color = "4 red">Red</a>
+        <a href="#" data-color = "green" class="dropdown">Green</a>
+        <a href="#" data-color = "yellow"  class="dropdown">Yellow</a>
+        <a href="#" data-color = "blue"  class="dropdown">Blue</a>
+        <a href="#" data-color = "red" class="dropdown">Red</a>
+        <a id="cancel_button" href="#" data-color = "_cancel_"  class="dropdown">Cancel</a>
     </div>
     <br>
-    <button onclick="finishAnnotation()">Finish and generate JSON</button>
-    <button onclick="play_pause()">Play/Pause</button>
-    <div id="download-link"></div>
 
-    <script src = '../static/js/video_annotation.js'> </script>
+    <script src = "{{ url_for('static', filename='js/video_annotation.js')}}"> </script>
     <script>
         const M = {{m}};
         const N = {{n}};
     </script>
-
-    <div id = "status"> </div>
 
     <form id = "annotation_form" action = "/new_annotation" method = "POST">
         <input type = "hidden" id = "annotation_data" name = "annotation_data">
