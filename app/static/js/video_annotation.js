@@ -112,6 +112,7 @@ function change_color(e)
             case "yellow":
                 color = "rgba(255, 255, 0, 0.5)";
                 stain_level = 2;
+                break;
             case "_cancel_":
                 this.style.display = "none";
                 return true;
@@ -175,11 +176,36 @@ function generateJSON(){
     })
 }
 
+// function play_pause(){
+//     const playPauseBtn = document.getElementById('play_pause');
+//     if(videoElem.playing === "true"){
+//         fetch('/play_pause', {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json'
+//             }
+//         })
+//         .then(response => response.json())
+//         .then(data => {
+//             console.log(data);
+//             if (data.paused) {
+//                 playPauseBtn.innerHTML = "Play";    // change the button text to Pause when playing
+//             } else {
+//                 playPauseBtn.innerHTML = "Pause";   // change the button text to Play when paused
+//             }
+//         })
+//         .catch(error => {
+//             console.error(error);
+//         });
+//     }
+// }
+
 
 document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoaded to secure the listen functions are binded after the DOM loaded
 {
     const contextMenu = document.getElementById('context_menu');
     const container = document.getElementById('video_container');
+
 
     // Click outside to hide the window
     document.addEventListener('click', function (event){
@@ -213,6 +239,16 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
             container.style.height = `${videoElem.offsetHeight}px`;
         }
     });
+
+    // playPauseBtn.addEventListener("click", () =>{
+    //     if(videoElem.paused){
+    //         videoElem.play();
+    //         playPauseBtn.textContent = "Play";  // change the button text to Play when paused
+    //     }else{
+    //         videoElem.pause();
+    //         playPauseBtn.textContent = "Pause"; // change the button text to Pause when playing
+    //     }
+    // });
 });
 
 

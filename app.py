@@ -5,6 +5,7 @@ import cv2
 import os
 import ast
 import time, json
+from threading import Lock
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///annotations.sqlite3'
@@ -20,14 +21,33 @@ os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 class VideoCamera(object):
     current_raw_frame = None      # recording the current frame, for the image processing
     current_encoded_frame = None    # For the stream transmission
+    pause = False
+    pause_lock = Lock()           # Add thread lock for the pause
+
     def __init__(self):
         self.video = cv2.VideoCapture(0)    # read from the camera stream
-        # self.video = cv2.VideoCapture('app/static/video/sample.mp4')  # read from the video file
+        # self.video = cv2.VideoCapture('app/static/video/sample_2.mp4')  # read from the video file
 
     def __del__(self):
         self.video.release()
 
     def get_frame(self):
+        # with self.pause_lock:
+        #     if not self.pause:
+        #         (self.grabbed, self.frame) = self.video.read()
+        #         if self.grabbed:
+        #             VideoCamera.current_raw_frame = self.frame.copy()
+        #             image = self.frame
+        #         # cv2.putText(image, "video", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0))
+        #             ret, jpg = cv2.imencode('.jpg', image)
+        #             if ret:
+        #                 VideoCamera.current_encoded_frame = jpg
+        #             return jpg.tobytes()
+        #         else:
+        #             return b'No frame'
+        #     else:
+        #         # return the last frame if the stream is paused
+        #         return VideoCamera.current_encoded_frame if VideoCamera.current_encoded_frame else b'No frame'
         (self.grabbed, self.frame) = self.video.read()
         if self.grabbed:
             VideoCamera.current_raw_frame = self.frame.copy()
@@ -81,10 +101,10 @@ def new_annotation():
     if VideoCamera.current_raw_frame is not None:     # If the current_img in the class is not null, then save the image
         new_annotation.img_l = VideoCamera.current_encoded_frame
         print(VideoCamera.current_raw_frame.shape)
-        y_center = int(new_annotation.y)
-        x_center = int(new_annotation.x)
-        height = int(new_annotation.h)
-        width = int(new_annotation.w)
+        y_center = new_annotation.y
+        x_center = new_annotation.x
+        height = new_annotation.h
+        width = new_annotation.w
 
         y1 = int(y_center - height / 2)
         y2 = int(y_center + height / 2)
@@ -95,9 +115,11 @@ def new_annotation():
         # save to the database
         _, image_encoded = cv2.imencode('.jpg', cropped_image)
         new_annotation.img_s = image_encoded.tobytes()
-    db.session.add(new_annotation)
-    db.session.commit()
-    return jsonify(success = True)
+        db.session.add(new_annotation)
+        db.session.commit()
+        return jsonify(success = True)
+    else:
+        return jsonify(success = False)
 
 
 @app.route('/')
@@ -116,7 +138,8 @@ def gen(camera):
 
 @app.route('/video_feed')   # return video stream response
 def video_feed():
-    return Response(gen(VideoCamera()), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(gen(VideoCamera()), mimetype='multipart/x-mixed-replace; boundary=frame')  # why multipart/x-mixed-replace
+
 
 
 @app.route('/generate_json', methods=['GET', 'POST'])
@@ -144,6 +167,15 @@ def generate_json():
     # Return JSON data
     return json_data
 
+
+# @app.route('/play_pause', methods=['GET', 'POST'])
+# def play_control():
+#     if VideoCamera.pause:
+#         VideoCamera.pause = False
+#         return jsonify(paused = False)
+#     else:
+#         VideoCamera.pause = True
+#         return jsonify(paused = True)
 
 if __name__ == '__main__':
     with app.app_context():

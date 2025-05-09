@@ -7,14 +7,15 @@
 <body>
     <div class="main_container">
         <div id="video_container" class = "video_container">
-            <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream">
+            <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream" playing="true">
+            <!-- <video id="video_player" src="{{ url_for('video_feed') }}" autoplay muted controlist="nodownload" oncontextmenu="return false;"></video> -->
             <canvas id="grid_overlay" class="grid_overlay"></canvas>
         </div>
         <div class="below_video_container">
             <div id = "status"> </div>
             <div class="button_group">
                 <button id="generateJSON" onclick="generateJSON()">Finish and generate JSON</button>
-                <button id="play_pause" onclick="play_pause()">Play/Pause</button>
+                <!-- <button id="play_pause" onclick="play_pause()">Play/Pause</button> -->
             </div>
         </div>
     </div>
