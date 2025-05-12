@@ -7,7 +7,7 @@ import ast
 import time, json
 from threading import Lock
 
-app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
+app = Flask(__name__, template_folder='app/templates', static_folder='app/static', instance_path='C:/DDD/UIT_PROJECT/web_flask/data')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///annotations.sqlite3'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -62,8 +62,8 @@ class VideoCamera(object):
 
 class Annotations(db.Model):
     id = db.Column('annotation_id', db.Integer, primary_key = True)
-    x = db.Column('x_center', db.Integer)
-    y = db.Column('y_center', db.Integer)
+    x = db.Column('startX', db.Integer)
+    y = db.Column('startY', db.Integer)
     w = db.Column('width', db.Integer)
     h = db.Column('height', db.Integer)
     m = db.Column('m_horizontal_grid', db.Integer)
@@ -90,8 +90,8 @@ def new_annotation():
     print(data_dict)
 
     new_annotation = Annotations(
-        x = data_dict['centerX'],
-        y = data_dict['centerY'],
+        x = data_dict['startX'],
+        y = data_dict['startY'],
         w = data_dict['width'],
         h = data_dict['height'],
         m = data_dict['m'],
@@ -101,15 +101,15 @@ def new_annotation():
     if VideoCamera.current_raw_frame is not None:     # If the current_img in the class is not null, then save the image
         new_annotation.img_l = VideoCamera.current_encoded_frame
         print(VideoCamera.current_raw_frame.shape)
-        y_center = new_annotation.y
-        x_center = new_annotation.x
+        startX = new_annotation.x
+        startY = new_annotation.y
         height = new_annotation.h
         width = new_annotation.w
 
-        y1 = int(y_center - height / 2)
-        y2 = int(y_center + height / 2)
-        x1 = int(x_center - width / 2)
-        x2 = int(x_center + width / 2)
+        y1 = startY
+        y2 = startY + height
+        x1 = startX
+        x2 = startX + width
         # cut the image
         cropped_image = VideoCamera.current_raw_frame[y1:y2, x1:x2]
         # save to the database
@@ -151,8 +151,8 @@ def generate_json():
     result = [
         {
             "id": a.id,
-            "x_center": a.x,
-            "y_center": a.y,
+            "startX": a.x1,
+            "startY": a.y1,
             "width": a.w,
             "height": a.h
         } for a in annotations

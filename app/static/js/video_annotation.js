@@ -49,7 +49,13 @@ function click_event(event) {
         const x = Math.floor(mouse_x / (rect.width / m));     // get the x and y coordinates of the mouse in grids
         const y = Math.floor(mouse_y / (rect.height / n));
 
-        currentGrid = {x, y, m, n};
+        // currentGrid = {x, y, m, n};
+        const x1 = x * (rect.width / m) + 1;
+        const y1 = y * (rect.height / n) + 1;
+        const w = rect.width / m - 2;
+        const h = rect.height / n - 2;
+
+        currentGrid = {x1, y1, w, h};
 
         // show the hidden menu
         const contextMenu = document.getElementById('context_menu');
@@ -125,24 +131,24 @@ function change_color(e)
 
         if (currentGrid) {
             const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
-            const {x, y, m, n} = currentGrid;
+            const {x1, y1, w, h} = currentGrid;
 
             ctx.fillStyle = color;
-            ctx.fillRect(x * (rect.width / m) + 1, y * (rect.height / n) + 1, rect.width / m - 2, rect.height / n - 2);
+            ctx.fillRect(x1, y1, w, h);
 
             // Clear the rectangle after a delay of 2s
             setTimeout(() => {
-                ctx.clearRect(x * (rect.width / m) + 1, y * (rect.height / n) + 1, rect.width / m - 2, rect.height / n - 2);
+                ctx.clearRect(x1, y1, w, h);
             }, 2000);
-            document.getElementById('status').innerText = "Annotation Position" + " " + "/" + x + " " + y + " " + "Stain Level" + " " + stain_level;
+            document.getElementById('status').innerText = "Annotation Position" + " " + "/" + x1 + " " + y1 + " " + "Stain Level" + " " + stain_level;
 
             const annotation = {
-                centerX: x * (rect.width / m) + (rect.width / m) / 2,
-                centerY: y * (rect.width / n) + (rect.height / n) / 2,
-                width: rect.width / m,
-                height: rect.height / n,
-                m: m,
-                n: n,
+                startX: x1,
+                startY: y1,
+                width: w,
+                height: h,
+                m: M,
+                n: N,
                 stainLevel: stain_level
             };
             // annotations.push(annotation);
