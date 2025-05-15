@@ -8,7 +8,7 @@ function initGrid(m , n)
 {
     var canvas = document.getElementById('grid_overlay');
 
-    var videoRect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
+    // var videoRect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
     canvas.width = videoElem.width;
     canvas.height = videoElem.height;
 
@@ -103,6 +103,10 @@ function change_color(e)
         let color;
         let stain_level;
         switch(e.target.getAttribute("data-color")) {
+            case "white":
+                color = "rgba(255, 255, 255, 0.5)";
+                stain_level = 0;
+                break;
             case "red":
                 color = "rgba(255, 0, 0, 0.5)";
                 stain_level = 4;
@@ -123,8 +127,8 @@ function change_color(e)
                 this.style.display = "none";
                 return true;
             default:
-                color = "rgba(255, 255, 0, 0.5)";
-                stain_level = 2;
+                color = "rgba(255, 255, 255, 0.5)";
+                stain_level = 0;
         }
         const canvas = document.getElementById("grid_overlay");
         const ctx = canvas.getContext("2d");
