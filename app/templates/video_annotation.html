@@ -3,12 +3,18 @@
 <head>
     <title>Video Annotation</title>
     <link rel = "stylesheet" href= "{{ url_for('static', filename='css/style.css')}}"> </link>
+    <link href="{{ url_for('static', filename='css/video-js-8.23.3/video-js.css')}}"></link>
+    <script src="{{ url_for('static', filename='js/video.min.js')}}"> </script>
+    <script src="{{ url_for('static', filename='js/video.js')}}"> </script>
 </head>
 <body>
     <div class="main_container">
         <div id="video_container" class = "video_container">
-            <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream" playing="true">
+            <!-- <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream" playing="true"> -->
             <!-- <video id="video_player" src="{{ url_for('video_feed') }}" autoplay muted controlist="nodownload" oncontextmenu="return false;"></video> -->
+            <video id="video_player" src="" controls="controls" autoplay="autoplay"></video>
+            <label for="video_file_input" class="file_input_label"></label>
+            <input type="file" id="video_file_input" accept="video/*">
             <canvas id="grid_overlay" class="grid_overlay"></canvas>
         </div>
         <div class="below_video_container">

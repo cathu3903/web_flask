@@ -1,5 +1,5 @@
 let annotations = [];
-const videoElem = document.getElementById("video_player");
+
 let currentGrid = null;
 let isContextMenuJustShown = false;
 
@@ -7,12 +7,15 @@ let isContextMenuJustShown = false;
 function initGrid(m , n)
 {
     var canvas = document.getElementById('grid_overlay');
-
-    // var videoRect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
-    canvas.width = videoElem.width;
-    canvas.height = videoElem.height;
-
+    const videoElem = document.getElementById("video_player");
     var ctx = canvas.getContext('2d');  // get the canvas context
+
+    const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
+
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    ctx.clearRect(0, 0,canvas.width, canvas.height);
     ctx.strokeStyle = 'rgb(255, 0, 0)';   // set the color of the grids
 
     for(let i = 1; i < m; i++)          // draw the vertical lines
@@ -36,6 +39,7 @@ function initGrid(m , n)
 
 let selectedGridColor = 'rgba(255, 255, 0, 0.5)';
 function click_event(event) {
+    const videoElem = document.getElementById("video_player");
     const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
     const m = M;
     const n = N;
@@ -97,7 +101,7 @@ function submitAnnotation(annotation){
 // change the color of grid
 function change_color(e)
 {
-
+    const videoElem = document.getElementById("video_player");
     if(e.target.tagName === "A"){
         e.preventDefault();
         let color;
@@ -215,6 +219,8 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
 {
     const contextMenu = document.getElementById('context_menu');
     const container = document.getElementById('video_container');
+    const fileInput = document.getElementById("video_file_input");
+    const videoElem = document.getElementById("video_player");
 
 
     // Click outside to hide the window
@@ -231,9 +237,9 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         }
     });
 
-    videoElem.onload = function() {     // once the video stream is loaded
-        initGrid(M, N);                 // initialize the grid
-    };
+    // videoElem.onload = function() {     // once the video stream is loaded
+    //     initGrid(M, N);                 // initialize the grid
+    // };
 
     contextMenu.addEventListener("click", change_color);
 
@@ -241,12 +247,18 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
 
     // add a listener to adjust the overlay of the button below the video window
     videoElem.addEventListener("loadedmetadata", () =>{
+        console.log("Video metadata loaded.");
+        console.log("videoWidth:", videoElem.videoWidth);
+        console.log("videoHeight:", videoElem.videoHeight);
         container.style.height = `${videoElem.offsetHeight}px`;     // get the html element of the video by template literals
+        initGrid(M, N);
     });
-    // check the resize event
+
+    // change the grid size when the window is resized
     window.addEventListener("resize", () =>{
         if( videoElem.offsetWidth > 0){
             container.style.height = `${videoElem.offsetHeight}px`;
+            initGrid(M, N);
         }
     });
 
@@ -259,6 +271,36 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     //         playPauseBtn.textContent = "Pause"; // change the button text to Pause when playing
     //     }
     // });
+
+    fileInput.addEventListener("change", function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const videoURL = URL.createObjectURL(file);
+            videoElem.src = videoURL;
+            videoElem.load();
+            videoElem.play();
+        }
+    });
+
+    document.addEventListener("dragover", function(event) {
+        event.preventDefault();
+    });
+
+    // Drag the video above the window
+    document.addEventListener("drop", function(event) {
+        event.preventDefault();
+        const file = event.dataTransfer.files[0];
+        if (file && file.type.startsWith("video/")) {
+            const videoURL = URL.createObjectURL(file);
+            videoElem.src = videoURL;
+            videoElem.load();
+            videoElem.play();
+
+            videoElem.addEventListener("canplay", () => {
+                initGrid(M, N);
+            }, {once: true});
+        }
+    });
 });
 
 
