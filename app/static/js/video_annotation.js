@@ -7,13 +7,17 @@ let isContextMenuJustShown = false;
 function initGrid(m , n)
 {
     var canvas = document.getElementById('grid_overlay');
-    const videoElem = document.getElementById("video_player");
+    // const videoElem = document.getElementById("video_player");
     var ctx = canvas.getContext('2d');  // get the canvas context
+    const player = videojs('video_player');
+    const videoElem = player.el();
 
     const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
 
     canvas.width = rect.width;
     canvas.height = rect.height;
+    // canvas.width = videoElem.videoWidth();
+    // canvas.height = videoElem.videoHeight();
 
     ctx.clearRect(0, 0,canvas.width, canvas.height);
     ctx.strokeStyle = 'rgb(255, 0, 0)';   // set the color of the grids
@@ -39,12 +43,16 @@ function initGrid(m , n)
 
 let selectedGridColor = 'rgba(255, 255, 0, 0.5)';
 function click_event(event) {
-    const videoElem = document.getElementById("video_player");
+    // const videoElem = document.getElementById("video_player");
+    const player = videojs('video_player');
+    const videoElem = player.el();
     const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
     const m = M;
     const n = N;
     const mouse_x = event.clientX - rect.left;  // get the mouse position relative to the video element
     const mouse_y = event.clientY - rect.top;   // same for y
+
+    event.stopPropagation();
 
     if(mouse_x >= 0 && mouse_x <= rect.width && mouse_y >= 0 && mouse_y <= rect.height)
     {
@@ -101,7 +109,8 @@ function submitAnnotation(annotation){
 // change the color of grid
 function change_color(e)
 {
-    const videoElem = document.getElementById("video_player");
+    const player = videojs('video_player');
+    const videoElem = player.el();
     if(e.target.tagName === "A"){
         e.preventDefault();
         let color;
@@ -220,7 +229,9 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     const contextMenu = document.getElementById('context_menu');
     const container = document.getElementById('video_container');
     const fileInput = document.getElementById("video_file_input");
-    const videoElem = document.getElementById("video_player");
+    // const videoElem = document.getElementById("video_player");
+    const player = videojs('video_player');
+    const videoElem = player.el();
 
 
     // Click outside to hide the window
@@ -248,16 +259,16 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     // add a listener to adjust the overlay of the button below the video window
     videoElem.addEventListener("loadedmetadata", () =>{
         console.log("Video metadata loaded.");
-        console.log("videoWidth:", videoElem.videoWidth);
-        console.log("videoHeight:", videoElem.videoHeight);
-        container.style.height = `${videoElem.offsetHeight}px`;     // get the html element of the video by template literals
+        console.log("videoWidth:", player.videoWidth);
+        console.log("videoHeight:", player.videoHeight);
+        container.style.height = `${player.el().offsetHeight}px`;     // get the html element of the video by template literals
         initGrid(M, N);
     });
 
     // change the grid size when the window is resized
     window.addEventListener("resize", () =>{
-        if( videoElem.offsetWidth > 0){
-            container.style.height = `${videoElem.offsetHeight}px`;
+        if( player.videoWidth() > 0){
+            container.style.height = `${player.el().offsetHeight}px`;
             initGrid(M, N);
         }
     });
@@ -276,9 +287,15 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         const file = event.target.files[0];
         if (file) {
             const videoURL = URL.createObjectURL(file);
-            videoElem.src = videoURL;
-            videoElem.load();
-            videoElem.play();
+            player.src({type: 'video/mp4', src: videoURL});
+            player.load();
+            player.play();
+            // videoElem.src = videoURL;
+            // videoElem.load();
+            // videoElem.play();
+            player.on('canplay', () => {
+                initGrid(M, N);
+            });
         }
     });
 
@@ -292,15 +309,23 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         const file = event.dataTransfer.files[0];
         if (file && file.type.startsWith("video/")) {
             const videoURL = URL.createObjectURL(file);
-            videoElem.src = videoURL;
-            videoElem.load();
-            videoElem.play();
+            // videoElem.src = videoURL;
+            // videoElem.load();
+            // videoElem.play();
+            player.src({type: 'video/mp4', src: videoURL});
+            player.load();
+            player.play();
 
             videoElem.addEventListener("canplay", () => {
                 initGrid(M, N);
-            }, {once: true});
+            });
         }
     });
+
+    document.getElementById("upload_button").addEventListener("click", () => {
+        document.getElementById("video_file_input").click();
+    });
+
 });
 
 

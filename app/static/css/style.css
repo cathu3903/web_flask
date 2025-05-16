@@ -35,6 +35,27 @@
     pointer-events: none;
     z-index: 2;
 }
+
+#video_file_input{
+    position: static;
+    margin-top: 20px;
+}
+
+#upload_button{
+    margin-top: 10px;
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    z-index: 3;
+    position: relative;
+}
+
+#upload_button:hover {
+    background-color: #0056b3;
+}
+
 .dropdown {
     position: relative;
     display: inline-none;
@@ -84,3 +105,30 @@
     margin-top: 20px;
 }
 
+.vjs-big-play-button {
+    display: none;
+}
+.vjs-text-track-settings {
+    display: none;
+}
+.vjs-error-display {
+    display: none;
+}
+.vjs-chapters-button {
+    display: none;
+}
+.vjs-descriptions-button {
+    display: none;
+}
+.vjs-subs-caps-button {
+    display: none;
+}
+.vjs-audio-button {
+    display: none;
+}
+.vjs-live-control {
+    display: none;
+}
+.vjs-seek-to-live-control {
+    display: none;
+}
