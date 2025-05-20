@@ -5,6 +5,8 @@ import cv2
 import os
 import ast
 import time, json
+import base64
+import traceback
 # from threading import Lock
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static', instance_path='C:/DDD/UIT_PROJECT/web_flask/data')
@@ -72,8 +74,18 @@ class Annotations(db.Model):
     m = db.Column('m_horizontal_grid', db.Integer)
     n = db.Column('n_vertical_grid', db.Integer)
     lv = db.Column('stain_level', db.Integer)
-    img_s_name = db.Column('croppoed_image', db.String(255))    # Save the relative image path
-    img_l_name = db.Column('original_image', db.String(255))    # Save the relative image path
+    img_cropped = db.Column('croppoed_image', db.LargeBinary)
+    img_cropped_path = db.Column('cropped_image_path', db.String(100))
+    frame_id = db.Column(db.INTEGER, db.ForeignKey('frames.id'))
+    frame = db.relationship("Frames", backref=db.backref('annotations', lazy = True))
+
+class Frames(db.Model):
+    id = db.Column('id', db.Integer, primary_key = True)
+
+    img_original = db.Column('original_image', db.LargeBinary)    # Save the relative image path
+    img_original_path = db.Column('original_image_path', db.String(100))
+
+    # annotations = db.relationship("Annotations", backref="frame")
 
 
 
@@ -84,6 +96,7 @@ class Annotations(db.Model):
 #         db.session.add(image)
 #         db.session.commit()
 
+'''
 
 @app.route('/new_annotation', methods = ['POST'])
 def new_annotation():
@@ -140,6 +153,90 @@ def new_annotation():
         return jsonify(success = True)
     else:
         return jsonify(success = False)
+'''
+@app.route('/new_annotation', methods = ['POST'])
+def new_annotation():
+    data = request.get_json()
+    if not data:
+        return jsonify({ "success": False, "error": "No JSON data received"} ), 400
+
+
+    frame_data = data.get('frame')
+    annotations = data.get('annotations', [])
+    cropped_list = data.get('cropped', [])
+    print("frame_data type:", type(frame_data))
+    print("cropped_data type:" + str(type(cropped_list)) + "\nlength:" + str(len(cropped_list)))
+    if not isinstance(frame_data, str):
+        return jsonify({"error": "frame data must be a base64 string"}), 400
+
+    if not frame_data or not annotations:
+        return jsonify(success = False)
+
+    try:
+        # resolve and save the frame data
+        if ',' in frame_data:
+            _, encoded = frame_data.split(',', 1)
+        else:
+            encoded = frame_data
+        frame_binary = base64.b64decode(encoded)
+
+        # generate unique file name
+        timestamp = int(time.time() * 1000)
+        frame_filename = f"original_{timestamp}.jpg"
+        original_frame_path = os.path.join(app.config['DATA_FOLDER'], 'original', frame_filename)
+        os.makedirs(os.path.dirname(original_frame_path), exist_ok=True)
+
+        with open(original_frame_path, 'wb') as f:
+            f.write(frame_binary)
+
+        # create the Frames object
+        frame_record = Frames(img_original = frame_binary, img_original_path = frame_filename)
+        db.session.add(frame_record)
+        db.session.commit()
+
+        # save each annotation data and cropped images
+        for idx, annotation in enumerate(annotations):
+            if idx >= len(cropped_list):
+                # if the index is out of range, then the cropped image is None
+                cropped_binary = None
+                cropped_filename = None
+            else:
+                cropped_data = cropped_list[idx]
+                print("cropped_data type:", type(cropped_data))
+                print("cropped_data: ", cropped_data)
+                if ',' in cropped_data:
+                    _, encoded_cropped = cropped_data.split(',', 1)
+                else:
+                    encoded_cropped = cropped_data
+                cropped_binary = base64.b64decode(encoded_cropped)
+                cropped_filename = f"cropped_{timestamp}_{idx}.jpg"
+                cropped_path = os.path.join(app.config['DATA_FOLDER'], 'cropped', cropped_filename)
+
+                os.makedirs(os.path.dirname(cropped_path), exist_ok=True)
+                with open(cropped_path, 'wb') as f:
+                    f.write(cropped_binary)
+
+            annotation_record = Annotations(
+                x = annotation['startX'],
+                y = annotation['startY'],
+                w = annotation['width'],
+                h = annotation['height'],
+                m = annotation['m'],
+                n = annotation['n'],
+                lv = annotation['stainLevel'],
+                img_cropped = cropped_binary,
+                img_cropped_path = cropped_filename,
+                frame_id = frame_record.id,     # link to the Frames object
+            )
+            db.session.add(annotation_record)
+
+        db.session.commit()
+        return jsonify(success = True)
+
+    except Exception as e:
+        print(f"Error saving annotation data: {e}")
+        traceback.print_exc()
+        return jsonify(success = False)
 
 
 @app.route('/')
@@ -186,6 +283,7 @@ def generate_json():
     # Convert data to JSON string
     '''
         5.14 : add the image name, not finished yet
+        5.20 : need to export both the image and the JSON file,
     '''
 
     result = [
@@ -220,5 +318,6 @@ def generate_json():
 
 if __name__ == '__main__':
     with app.app_context():
+        # db.drop_all()
         db.create_all()
     app.run(debug=True)
