@@ -7,6 +7,7 @@ import ast
 import time, json
 import base64
 import traceback
+import numpy as np
 # from threading import Lock
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static', instance_path='C:/DDD/UIT_PROJECT/web_flask/data')
@@ -74,7 +75,7 @@ class Annotations(db.Model):
     m = db.Column('m_horizontal_grid', db.Integer)
     n = db.Column('n_vertical_grid', db.Integer)
     lv = db.Column('stain_level', db.Integer)
-    img_cropped = db.Column('croppoed_image', db.LargeBinary)
+    # img_cropped = db.Column('croppoed_image', db.LargeBinary)
     img_cropped_path = db.Column('cropped_image_path', db.String(100))
     frame_id = db.Column(db.INTEGER, db.ForeignKey('frames.id'))
     frame = db.relationship("Frames", backref=db.backref('annotations', lazy = True))
@@ -182,12 +183,12 @@ def new_annotation():
 
         # generate unique file name
         timestamp = int(time.time() * 1000)
-        frame_filename = f"original_{timestamp}.jpg"
-        original_frame_path = os.path.join(app.config['DATA_FOLDER'], 'original', frame_filename)
-        os.makedirs(os.path.dirname(original_frame_path), exist_ok=True)
+        frame_filename = f"original_{timestamp}"
+        # original_frame_path = os.path.join(app.config['DATA_FOLDER'], 'original', frame_filename + '.jpg')
+        # os.makedirs(os.path.dirname(original_frame_path), exist_ok=True)
 
-        with open(original_frame_path, 'wb') as f:
-            f.write(frame_binary)
+        # with open(original_frame_path, 'wb') as f:
+        #     f.write(frame_binary)
 
         # create the Frames object
         frame_record = Frames(img_original = frame_binary, img_original_path = frame_filename)
@@ -201,20 +202,20 @@ def new_annotation():
                 cropped_binary = None
                 cropped_filename = None
             else:
-                cropped_data = cropped_list[idx]
-                print("cropped_data type:", type(cropped_data))
-                print("cropped_data: ", cropped_data)
-                if ',' in cropped_data:
-                    _, encoded_cropped = cropped_data.split(',', 1)
-                else:
-                    encoded_cropped = cropped_data
-                cropped_binary = base64.b64decode(encoded_cropped)
-                cropped_filename = f"cropped_{timestamp}_{idx}.jpg"
+                # cropped_data = cropped_list[idx]
+                # print("cropped_data type:", type(cropped_data))
+                # print("cropped_data: ", cropped_data)
+                # if ',' in cropped_data:
+                #     _, encoded_cropped = cropped_data.split(',', 1)
+                # else:
+                #     encoded_cropped = cropped_data
+                # cropped_binary = base64.b64decode(encoded_cropped)
+                cropped_filename = f"cropped_{timestamp}_{idx}"
                 cropped_path = os.path.join(app.config['DATA_FOLDER'], 'cropped', cropped_filename)
 
-                os.makedirs(os.path.dirname(cropped_path), exist_ok=True)
-                with open(cropped_path, 'wb') as f:
-                    f.write(cropped_binary)
+                # os.makedirs(os.path.dirname(cropped_path), exist_ok=True)
+                # with open(cropped_path, 'wb') as f:
+                #     f.write(cropped_binary)
 
             annotation_record = Annotations(
                 x = annotation['startX'],
@@ -224,7 +225,7 @@ def new_annotation():
                 m = annotation['m'],
                 n = annotation['n'],
                 lv = annotation['stainLevel'],
-                img_cropped = cropped_binary,
+                # img_cropped = cropped_binary,
                 img_cropped_path = cropped_filename,
                 frame_id = frame_record.id,     # link to the Frames object
             )
@@ -278,33 +279,98 @@ def serve_image_original(filename):
 @app.route('/generate_json', methods=['GET', 'POST'])
 def generate_json():
     # Generate JSON data
-    annotations = Annotations.query.with_entities(Annotations.id, Annotations.x, Annotations.y, Annotations.w, Annotations.h, Annotations.lv, Annotations.img_l_name).all()
+    frame_querys = Frames.query.all()
+    for frame_record in frame_querys:
+        if not frame_record:
+            continue
+        annotations = Annotations.query.filter(Annotations.frame_id == frame_record.id).all()
 
-    # Convert data to JSON string
-    '''
-        5.14 : add the image name, not finished yet
-        5.20 : need to export both the image and the JSON file,
-    '''
+        # get the size of each frame
+        frame_data = frame_record.img_original
+        nparr = np.frombuffer(frame_data, np.uint8)
+        frame_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        img_height, img_width = frame_img.shape[:2]
+        yolo_lines = []
 
-    result = [
-        {
-            "image_name": a.img_l_name,
-            "stain_level": a.lv,
-            "startX": a.x1,
-            "startY": a.y1,
-            "width": a.w,
-            "height": a.h
-        } for a in annotations
-    ]
-    json_data = jsonify(result)
+        # create original images using the database
+        original_dir = os.path.join(app.config['DATA_FOLDER'], 'original')
+        os.makedirs(os.path.dirname(original_dir), exist_ok=True)
+        original_path = os.path.join(original_dir, frame_record.img_original_path + ".jpg")
 
-    file_path = os.path.join('annotation_data', time.strftime("%Y-%m-%d_%H_%M_%S",time.localtime()) +'.json')
-    # Generate a json file in server
-    with open(file_path, 'w') as f:
-        json.dump(result, f, indent = 2)
+        with open(original_path, 'wb') as f:
+            f.write(frame_img)
 
-    # Return JSON data
-    return json_data
+        # frame_dir = os.path.join(app.config['DATA_FOLDER'], 'original')
+        # frame_path = os.path.join(frame_path, frame_record.img_original_path)
+
+
+        # Convert data to JSON string
+        '''
+            5.14 : add the image name, not finished yet
+            5.20 : need to export both the image and the JSON file,
+        '''
+
+        # save each annotation data and cropped images
+        for a in annotations:
+            # cropped_data = cropped_list[idx]
+
+            y1, x1 = int(a.y), int(a.x)
+            h, w = int(a.h), int(a.w)
+            print("y1, x1:" + str(y1) + ", " + str(x1))
+            print("h, w:" + str(h) + ", " + str(w))
+            cropped_img = frame_img[y1:y1+h, x1:x1+w]
+            _, cropped_encoded = cv2.imencode('.jpg', cropped_img)
+            cropped_filename = f"{a.img_cropped_path}.jpg"
+            cropped_dir = os.path.join(app.config['DATA_FOLDER'], 'cropped')
+            cropped_path = os.path.join(cropped_dir, cropped_filename)
+
+            # os.makedirs(os.path.dirname(cropped_path), exist_ok=True)
+            with open(cropped_path, 'wb') as f:
+                f.write(cropped_encoded.tobytes())
+
+            # generate YOLO annotatons files
+            stain_level = a.lv
+            x_center = (x1 + w / 2) / img_width
+            y_center = (y1 + h / 2) / img_height
+            box_w = w / img_width
+            box_h = h / img_height
+
+            yolo_line = f"{stain_level} {x_center:.6f} {y_center:.6f} {box_w:.6f} {box_h:.6f}\n"
+            yolo_lines.append(yolo_line)
+
+        result = [
+            {
+                "image_name": a.img_cropped_path,
+                "stain_level": a.lv,
+                "startX": a.x,
+                "startY": a.y,
+                "width": a.w,
+                "height": a.h,
+                "image_width": frame_img.shape[1],
+                "image_height": frame_img.shape[0],
+            } for a in annotations
+        ]
+        json_data = jsonify(result)
+        json_dir = os.path.join(app.config['DATA_FOLDER'], 'annotations_json')
+        os.makedirs(os.path.dirname(json_dir), exist_ok=True)
+        json_filename = f"{frame_record.img_original_path}.json"
+        json_path = os.path.join(json_dir, json_filename)
+
+        # Generate a json file in server
+        with open(json_path, 'w') as f:
+            json.dump(result, f, indent = 2)
+
+        # generate YOLO annotation file
+        txt_dir = os.path.join(app.config['DATA_FOLDER'], 'labels')
+        os.makedirs(txt_dir, exist_ok=True)
+
+        txt_filename = f"{frame_record.img_original_path}.txt"
+        txt_path = os.path.join(txt_dir, txt_filename)
+
+        with open(txt_path, 'w') as f:
+            f.writelines(yolo_lines)
+
+    return jsonify({"success": True, "message": "JSON and cropped images generated successfully."})
 
 
 # @app.route('/play_pause', methods=['GET', 'POST'])

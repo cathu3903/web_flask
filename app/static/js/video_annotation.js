@@ -297,6 +297,23 @@ function PlayerPlaying()
     }
 }
 
+function togglePlayPause()
+{
+    const player = videojs('video_player');
+    if (player) {
+        if (player.paused())
+        {
+            player.play();
+            playPauseBtn.textContent = "Pause";
+        }
+        else
+        {
+            player.pause();
+            playPauseBtn.textContent = "Play";
+        }
+    }
+}
+
 
 document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoaded to secure the listen functions are binded after the DOM loaded
 {
@@ -307,6 +324,11 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     const player = videojs('video_player');
     const videoElem = player.el();
     const annotateUpload = document.getElementById("upload_annotation");
+    const generateJSONBtn = document.getElementById("generateJSON");
+    const playPauseBtn = document.getElementById('play_pause');
+    // const tooltip = document.getElementById('progress_tooltip');
+
+    // const progressControl = player.contorlBar.progressControl;
 
 
     player.on('pause', PlayerPaused);
@@ -392,11 +414,65 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
 
     annotateUpload.addEventListener("click", () => {
         submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_frame_data);
-
         Annotations = [];
         Current_cropped_image = [];
         Current_frame_data = null;
-    })
+        document.getElementById('upload_annotation').style.display = "none";
+    });
+
+    generateJSONBtn.addEventListener("click", () => {
+        generateJSON();
+    });
+
+    // bind click event on play_pause button
+    player.on('play', function() {
+        playPauseBtn.textContent = "Pause";
+    });
+    player.on('pause', () => {
+        playPauseBtn.textContent = "Play";
+    });
+
+    playPauseBtn.addEventListener('click', togglePlayPause);
+    // control by Space
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            togglePlayPause();
+        }
+    });
+
+    // if(progressControl)
+    // {
+    //     const seekBar = progressControl.seekBar;
+
+    //     // display the time when mouse over the seek bar
+    //     seekBar.addEventListener('mousemove', (e) => {
+    //         const duration = player.duration();
+    //         if (!duration || isNaN(duration)) return;
+
+    //         const rect = seekBar.el_.getBoundingClientRect();
+    //         const percent = (e.clientX - rect.left) / rect.width;
+    //         const time = duration * percent;
+
+    //         tooltip.textContent = formatTime(time);
+    //         tooltip.style.left = `${e.clientX + 10}px`;
+    //         tooltip.style.top = `${rect.top - 30}px`;
+    //         tooltip.style.opacity = 1;
+    //     });
+
+    //     // hide the time when mouse leave the seek bar
+    //     seekBar.addEventListener('mouseleave', () => {
+    //         tooltip.style.opacity = 0;
+    //     });
+    // }
+
+    // // format time
+    // function formatTime(seconds) {
+    //     const min = Math.floor(seconds / 60);
+    //     const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
+    //     return `${min}:${sec}`;
+    // }
+
 });
 
 
