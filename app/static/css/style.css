@@ -42,8 +42,8 @@
 }
 
 #upload_button{
-    margin-top: 10px;
-    padding: 8px 16px;
+    /* margin-top: 10px;
+    padding: 8px 16px; */
     background-color: #007bff;
     color: white;
     border: none;
@@ -53,8 +53,8 @@
 }
 
 #upload_annotation{
-    margin-top: 10px;
-    padding: 8px 16px;
+    /* margin-top: 10px;
+    padding: 8px 16px; */
     background-color: burlywood;
     color: black;
     border: none;
@@ -68,9 +68,9 @@
     background-color: #0056b3;
 }
 #generateJSON {
-    margin-top: 10px;
-    padding: 8px 16px;
-    background-color: #007bff;
+    /* margin-top: 10px;
+    padding: 8px 16px; */
+    background-color: plum;
     color: white;
     border: none;
     cursor: pointer;
@@ -81,8 +81,8 @@
     background-color: #0056b3;
 }
 #play_pause {
-    margin-top: 10px;
-    padding: 8px 16px;
+    /* margin-top: 10px;
+    padding: 8px 16px; */
     background-color: #28a745;
     color: white;
     border: none;
@@ -102,21 +102,26 @@
     display: none;
     position: absolute;
     background-color: #f9f9f9;
-    min-width: 160px;
+    min-width: 8vw;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    padding: 16px 12px;
+    padding: 1.2vw 0.8vw;
     z-index: 3;
 }
 .dropdown-content a {
     color: black;
-    padding: 12px 16px;
+    padding: 1vw 2vw;
+    font-size: 1vw;
     text-decoration: none;
     background-color: aquamarine;
     display: block;
     width: auto;
 }
 
-.dropdown-content a:hover {background-color: #f1f1f1}
+.dropdown-content a:hover {
+    background-color: #f1f1f1;
+    transform: scale(1.05); /* 微交互效果 */
+    transition: transform 0.2s;
+}
 
 #cancel_button {
     background-color: rgba(255, 255, 0, 0.5);
@@ -143,6 +148,43 @@
     margin-top: 20px;
     z-index: 3;
 }
+
+.button_group button {
+    padding : 0.5vw, 1.2vw;
+    font-size: 1vw;
+}
+
+@media screen and (min-width: 5312px) {
+    .button_group button{
+        padding: 1.2vw, 2.4vw;
+        font-size: 1.5vw;
+    }
+    .dropdown-content{
+        min-width: 4vw;
+        padding: 1.2vw 0.8vw;
+    }
+    .dropdown-content a {
+        padding: 1vw 1.5vw;
+        font-size: 1vw;
+    }
+    #context_menu {
+        font-size: 1vw;
+    }
+    #status {
+        font-size: 1vw;
+    }
+
+    /* #cancel_button {
+        font-size: 1.2vw;
+    } */
+
+}
+
+#upload_button, #generateJSON, #play_pause,  #upload_annotation {
+    margin-top: 1vw;
+    padding: 0.5vw, 1.2vw;
+}
+
 .vjs-seek-to-live-control {
     display: none;
 }

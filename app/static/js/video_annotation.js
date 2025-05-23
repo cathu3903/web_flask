@@ -46,6 +46,8 @@ function initGrid(m , n)
 
 let selectedGridColor = 'rgba(255, 255, 0, 0.5)';
 function clickEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
     // const videoElem = document.getElementById("video_player");
     if(!flagAnnotate) return;                       // if the user is not allowed to annotate, return
     const player = videojs('video_player');
@@ -200,10 +202,12 @@ function choose_color(e)
             ctx.fillStyle = color;
             ctx.fillRect(x1, y1, w, h);
 
-            // Clear the rectangle after a delay of 2s
-            setTimeout(() => {
-                ctx.clearRect(x1, y1, w, h);
-            }, 2000);
+            // 5.23: Stop Clearing the rectangle after a delay, the rectangle will be cleared after play button is clicked
+            // // Clear the rectangle after a delay of 2s
+            // setTimeout(() => {
+            //     ctx.clearRect(x1, y1, w, h);
+            // }, 2000);
+
             // 5.20: new idea
             // instead of remove the annotation on the canvas layer, the color will disappear when play the video again
             document.getElementById('status').innerText = "Annotation Position" + " " + "/" + x1 + " " + y1 + " " + "Stain Level" + " " + stain_level;
@@ -304,12 +308,11 @@ function togglePlayPause()
         if (player.paused())
         {
             player.play();
-            playPauseBtn.textContent = "Pause";
+            initGrid(M, N);
         }
         else
         {
             player.pause();
-            playPauseBtn.textContent = "Play";
         }
     }
 }
