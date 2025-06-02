@@ -5,6 +5,7 @@ let Is_context_menu_just_shown = false;
 let flagAnnotate = false;      // flag of whether the user is allowed to annotate
 let Current_frame_data = null;
 let Current_cropped_image = [];
+let GridMatrix = [];
 
 
 function initGrid(m , n)
@@ -16,6 +17,17 @@ function initGrid(m , n)
     const videoElem = player.el();
 
     const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
+    GridMatrix = [];
+
+    for(let i = 0; i < m; i ++)
+    {
+        GridMatrix[i] = [];
+        for(let j = 0; j < n; j++)
+        {
+            GridMatrix[i][j] = {stainLevel: 0};
+        }
+    }
+
 
     canvas.width = rect.width;
     canvas.height = rect.height;
@@ -64,16 +76,16 @@ function clickEvent(event) {
     {
         // event.preventDefault();     // prevent the default action (click)
 
-        const x = Math.floor(mouse_x / (rect.width / m));     // get the x and y coordinates of the mouse in grids
-        const y = Math.floor(mouse_y / (rect.height / n));
+        const a = Math.floor(mouse_x / (rect.width / m));     // get the a and b coordinates of the mouse in grids
+        const b = Math.floor(mouse_y / (rect.height / n));
 
-        // Current_grid = {x, y, m, n};
-        const x1 = x * (rect.width / m) + 1;
-        const y1 = y * (rect.height / n) + 1;
+        // Current_grid = {x, y, m, n, a, b};
+        const x1 = a * (rect.width / m) + 1;
+        const y1 = b * (rect.height / n) + 1;
         const w = rect.width / m - 2;
         const h = rect.height / n - 2;
 
-        Current_grid = {x1, y1, w, h};
+        Current_grid = {x1, y1, w, h, a, b};
 
         // show the hidden menu
         const contextMenu = document.getElementById('context_menu');
@@ -155,11 +167,36 @@ function cropGridInImage(base64Image, grid)
 
 }
 
+function updateGrid(grid, level)
+{
+    // 1. clear the grid
+    // clearGrid(grid);
+    // 2. update the grid
+    for(let i = 0; i < GridMatrix.length; i++)
+    {
+        if(i === grid.a)
+        {
+            for (let j = 0; j < GridMatrix[i].length; j++)
+            {
+                if(j === grid.b)
+                {
+                    GridMatrix[i][j].stainLevel = level;
+                    break;
+                }
+            }
+        }
+
+    }
+
+}
+
 // change the color of grid
 function choose_color(e)
 {
     const player = videojs('video_player');
     const videoElem = player.el();
+    const canvas = document.getElementById("grid_overlay");
+    const ctx = canvas.getContext("2d");
     if(e.target.tagName === "A"){
         e.preventDefault();
         let color;
@@ -188,16 +225,21 @@ function choose_color(e)
             case "_cancel_":
                 this.style.display = "none";
                 return true;
+            case "_clear_":
+                this.style.display = "none";
+                ctx.clearRect(Current_grid.x1, Current_grid.y1, Current_grid.w, Current_grid.h);
+                updateGrid(Current_grid, 0);
+                return true;
             default:
                 color = "rgba(255, 255, 255, 0.5)";
                 stain_level = 0;
         }
-        const canvas = document.getElementById("grid_overlay");
-        const ctx = canvas.getContext("2d");
+
 
         if (Current_grid) {
-            const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
-            const {x1, y1, w, h} = Current_grid;
+            updateGrid(Current_grid, stain_level);
+            // const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
+            const {x1, y1, w, h, a, b} = Current_grid;
 
             ctx.fillStyle = color;
             ctx.fillRect(x1, y1, w, h);
