@@ -242,8 +242,8 @@ def new_annotation():
 
 @app.route('/')
 def index():
-    m = 5
-    n = 5
+    m = 25
+    n = 30
     return render_template('video_annotation.html', m = m, n = n)
 
 
@@ -293,12 +293,23 @@ def generate_json():
         yolo_lines = []
 
         # create original images using the database
+        # original_dir = os.path.join(app.config['DATA_FOLDER'], 'original')
+        # os.makedirs(os.path.dirname(original_dir), exist_ok=True)
+        # original_path = os.path.join(original_dir, frame_record.img_original_path + ".jpg")
+
+        # with open(original_path, 'wb') as f:
+        #     f.write(frame_img)
+        # 创建保存原始图像的目录
         original_dir = os.path.join(app.config['DATA_FOLDER'], 'original')
-        os.makedirs(os.path.dirname(original_dir), exist_ok=True)
+        os.makedirs(original_dir, exist_ok=True)  # 直接创建目标目录，而非其父目录
+
+        # 将图像编码为 JPEG 格式
+        _, encoded_img = cv2.imencode('.jpg', frame_img)  # 编码为 JPEG 格式
         original_path = os.path.join(original_dir, frame_record.img_original_path + ".jpg")
 
+        # 写入文件
         with open(original_path, 'wb') as f:
-            f.write(frame_img)
+            f.write(encoded_img.tobytes())  # 确保写入的是字节流
 
         # frame_dir = os.path.join(app.config['DATA_FOLDER'], 'original')
         # frame_path = os.path.join(frame_path, frame_record.img_original_path)

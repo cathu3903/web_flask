@@ -371,6 +371,7 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     const annotateUpload = document.getElementById("upload_annotation");
     const generateJSONBtn = document.getElementById("generateJSON");
     const playPauseBtn = document.getElementById('play_pause');
+    var foo = new EventTarget();
     // const tooltip = document.getElementById('progress_tooltip');
 
     // const progressControl = player.contorlBar.progressControl;
@@ -382,6 +383,12 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     contextMenu.addEventListener("click", choose_color);
 
     document.getElementById('video_container').addEventListener('click', clickEvent);
+    // document.getElementById('video_container').addEventListener('click', function (event) {
+
+    //     clickEvent(event);
+    // });
+
+
 
     document.addEventListener("dragover", function(event) {
         event.preventDefault();

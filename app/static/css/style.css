@@ -226,6 +226,9 @@
 .video-js .vjs-control-bar{
     z-index: 3;
 }
+.vjs-tech {
+    pointer-events: none;
+}
 
 
 /* .video-js .vjs-progress-control {
