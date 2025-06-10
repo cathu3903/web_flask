@@ -299,17 +299,15 @@ def generate_json():
 
         # with open(original_path, 'wb') as f:
         #     f.write(frame_img)
-        # 创建保存原始图像的目录
         original_dir = os.path.join(app.config['DATA_FOLDER'], 'original')
-        os.makedirs(original_dir, exist_ok=True)  # 直接创建目标目录，而非其父目录
+        os.makedirs(original_dir, exist_ok=True)
 
-        # 将图像编码为 JPEG 格式
-        _, encoded_img = cv2.imencode('.jpg', frame_img)  # 编码为 JPEG 格式
+        # encoded as JPG
+        _, encoded_img = cv2.imencode('.jpg', frame_img)
         original_path = os.path.join(original_dir, frame_record.img_original_path + ".jpg")
 
-        # 写入文件
         with open(original_path, 'wb') as f:
-            f.write(encoded_img.tobytes())  # 确保写入的是字节流
+            f.write(encoded_img.tobytes())
 
         # frame_dir = os.path.join(app.config['DATA_FOLDER'], 'original')
         # frame_path = os.path.join(frame_path, frame_record.img_original_path)
