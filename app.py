@@ -1,13 +1,23 @@
 from flask import Flask, render_template, request, redirect, send_from_directory, Response, jsonify, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
+from uaserver import server_minimal
+# import asyncio
 import time
 import cv2
 import os
-import ast
+import time
+import threading
 import time, json
 import base64
 import traceback
 import numpy as np
+from queue import Queue, Empty
+import asyncio
+import logging
+
+# 导入uaclient模块
+from uaserver.uaclient import UAClient
+
 # from threading import Lock
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static', instance_path='C:/DDD/UIT_PROJECT/web_flask/data')
@@ -21,6 +31,10 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 app.config['DATA_FOLDER'] = 'data'
 # make sure the data folder exists
 os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
+
+share_loop = None
+robot_task_queue = asyncio.Queue(maxsize=3)
+
 
 
 
@@ -89,72 +103,6 @@ class Frames(db.Model):
     # annotations = db.relationship("Annotations", backref="frame")
 
 
-
-# Read the image file from the certain route
-# def store_image_from_route(file_path):
-
-#         image = Image(image = image_data)
-#         db.session.add(image)
-#         db.session.commit()
-
-'''
-
-@app.route('/new_annotation', methods = ['POST'])
-def new_annotation():
-    data = request.form.get('annotation_data')
-    # resolve and save the data
-    data_dict = ast.literal_eval(data)      # transfer into dict type
-    print(data_dict)
-
-    new_annotation = Annotations(
-        x = data_dict['startX'],
-        y = data_dict['startY'],
-        w = data_dict['width'],
-        h = data_dict['height'],
-        m = data_dict['m'],
-        n = data_dict['n'],
-        lv = data_dict['stainLevel']
-    )
-    if VideoCamera.current_raw_frame is not None:     # If the current_img in the class is not null, then save the image
-        # new_annotation.img_l = VideoCamera.current_encoded_frame
-        original_dir = os.path.join(app.instance_path, ORIGINAL_SAVE_FOLDER)
-        cropped_dir = os.path.join(app.instance_path, CROPPED_SAVE_FOLDER)
-        os.makedirs(original_dir, exist_ok=True)
-        os.makedirs(cropped_dir, exist_ok=True)
-
-        timestamp = int(time.time() * 1000)
-        base_filename = f"annotation_{timestamp}"
-
-        original_filename = f"{base_filename}_original.jpg"
-        original_path = os.path.join(original_dir, original_filename)
-        cv2.imwrite(original_path, VideoCamera.current_raw_frame)   # save the original image
-        new_annotation.img_l_name = original_filename   # save the name of original image
-
-        startX = new_annotation.x
-        startY = new_annotation.y
-        height = new_annotation.h
-        width = new_annotation.w
-
-        y1 = startY
-        y2 = startY + height
-        x1 = startX
-        x2 = startX + width
-        # cut the image
-        cropped_image = VideoCamera.current_raw_frame[y1:y2, x1:x2]
-
-        cropped_filename = f"{base_filename}_cropped.jpg"
-        cropped_path = os.path.join(cropped_dir, cropped_filename)
-        cv2.imwrite(cropped_path, cropped_image)
-        new_annotation.img_s_name = cropped_filename    # save the name of cropped image
-
-        # _, image_encoded = cv2.imencode('.jpg', cropped_image)
-        # new_annotation.img_s = image_encoded.tobytes()
-        db.session.add(new_annotation)
-        db.session.commit()
-        return jsonify(success = True)
-    else:
-        return jsonify(success = False)
-'''
 @app.route('/new_annotation', methods = ['POST'])
 def new_annotation():
     data = request.get_json()
@@ -381,18 +329,205 @@ def generate_json():
 
     return jsonify({"success": True, "message": "JSON and cropped images generated successfully."})
 
+@app.route('/clean_image', methods = ['GET', 'POST'])
+def robot_image():
+    m = 5
+    n = 5
+    return render_template('robot_cleaning_image.html', m = m, n = n)
 
-# @app.route('/play_pause', methods=['GET', 'POST'])
-# def play_control():
-#     if VideoCamera.pause:
-#         VideoCamera.pause = False
-#         return jsonify(paused = False)
-#     else:
-#         VideoCamera.pause = True
-#         return jsonify(paused = True)
+@app.route('/new_actions', methods = ['GET', 'POST'])
+def new_actions():
+    data = request.get_json()
+    if not data:
+        return jsonify({ "success": False, "error": "No JSON data received"} ), 400
+
+    frame_data = data.get('frame')
+    annotations = data.get('annotations', [])
+    cropped_list = data.get('cropped', [])
+    print("frame_data type:", type(frame_data))
+    print("cropped_data type:" + str(type(cropped_list)) + "\nlength:" + str(len(cropped_list)))
+    if not isinstance(frame_data, str):
+        return jsonify({"error": "frame data must be a base64 string"}), 400
+
+    if not frame_data or not annotations:
+        return jsonify(success = False)
+
+    try:
+        # resolve and save the frame data
+        if ',' in frame_data:
+            _, encoded = frame_data.split(',', 1)
+        else:
+            encoded = frame_data
+        frame_binary = base64.b64decode(encoded)
+
+        # generate unique file name
+        timestamp = int(time.time() * 1000)
+        frame_filename = f"original_{timestamp}"
+
+        # create the Frames object
+        frame_record = Frames(img_original = frame_binary, img_original_path = frame_filename)
+        db.session.add(frame_record)
+        db.session.commit()
+
+        # save each annotation data and cropped images
+        for idx, annotation in enumerate(annotations):
+            if idx >= len(cropped_list):
+                # if the index is out of range, then the cropped image is None
+                cropped_binary = None
+                cropped_filename = None
+            else:
+                cropped_filename = f"cropped_{timestamp}_{idx}"
+                cropped_path = os.path.join(app.config['DATA_FOLDER'], 'cropped', cropped_filename)
+
+            annotation_record = Annotations(
+                x = annotation['startX'],
+                y = annotation['startY'],
+                w = annotation['width'],
+                h = annotation['height'],
+                m = annotation['m'],
+                n = annotation['n'],
+                lv = annotation['stainLevel'],
+                img_cropped_path = cropped_filename,
+                frame_id = frame_record.id,     # link to the Frames object
+            )
+            db.session.add(annotation_record)
+
+            grid_x = annotation['a']
+            grid_y = annotation['b']
+            col_m = int(annotation['m'])
+            line_n = int(annotation['n'])
+            lv= int(annotation['stainLevel'])
+
+            # Enqueue the robot task, trigger the consumer
+            if share_loop is not None:
+                asyncio.run_coroutine_threadsafe(enqueue_robot_task(grid_x, grid_y, col_m, line_n, lv), share_loop)
+            else:
+                print("Share_loop is None. Error. Skipped command")
+
+        db.session.commit()
+
+        # Execute the robot move
+        # server_minimal.update_variables(grid_x, grid_y, col_m, line_n)
+
+        return jsonify(success = True)
+
+    except Exception as e:
+        print(f"Error saving annotation data: {e}")
+        traceback.print_exc()
+        return jsonify(success = False)
+
+
+async def enqueue_robot_task(x, y, m, n, lv, mach_id = 0):
+    # robot task enqueuing
+    await robot_task_queue.put({
+        "grid_x": x,
+        "grid_y": y,
+        "col_m": m,
+        "line_n": n,
+        "lv": lv,
+        "mach_id": mach_id
+    })
+
+    print(f"Enqueued task: grid_x={x}, grid_y={y}, col_m={m}, line_n={n}, lv={lv}")
+
+async def execute_robot_task_async(grid_x, grid_y, col_m, line_n, lv=0):
+    """
+    asynchronous function to execute a robot task
+    """
+    print(f"[DEBUG] Starting task execution: x={grid_x}, y={grid_y}")
+    try:
+        # await server_minimal.update_variables(grid_x, grid_y, col_m, line_n)
+
+        result = await ua_client.update_variables(x=grid_x, y=grid_y, m=col_m, n=line_n)
+
+        if result["success"]:
+            print(f"[DEBUG] Task executed successfully")
+        else:
+            print(f"[DEBUG] Task execution partially failed: {result['failed_updates']}")
+
+        await asyncio.sleep(1)
+    except Exception as e:
+        print(f"Error executing task: {e}")
+        traceback.print_exc()
+
+
+
+async def async_consumer():
+    """重构任务处理器使用统一事件循环"""
+    print("Async consumer started!!!")
+    while True:
+        try:
+            task = await asyncio.wait_for(robot_task_queue.get(), timeout=1)
+            print(f"[DEBUG] Task fetched: {task}")
+
+            # 直接提交到当前事件循环
+            await execute_robot_task_async(
+                task["grid_x"],
+                task["grid_y"],
+                task["col_m"],
+                task["line_n"],
+                task["lv"]
+            )
+
+            robot_task_queue.task_done()
+        except asyncio.TimeoutError:
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            print(f"Error processing queue: {e}")
+            traceback.print_exc()
+
+
+def multi_thread(thread_name, delay):
+    # start the OPC UA server
+    asyncio.run(server_minimal.main())
+    print(f"Thread {thread_name} exiting")
+
+def start_ua_client_loop(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+async def init_ua_client():
+    """initialize OPC UA client"""
+    global ua_client
+    ua_client = UAClient()
+    await ua_client.connect()
+
 
 if __name__ == '__main__':
-    with app.app_context():
-        # db.drop_all()
-        db.create_all()
-    app.run(debug=True)
+    try:
+        # 启动OPC UA服务器线程
+        opc_thread = threading.Thread(
+            target=multi_thread,
+            args=("OPC UA Server", 0.5),
+            daemon=True
+        )
+        opc_thread.start()
+    except Exception as e:
+        print(f"Error starting OPC UA server: {e}")
+
+    try:
+        client_loop = asyncio.new_event_loop()
+
+        # start the opc ua client loop in a separate thread
+        ua_client_thread = threading.Thread(target=start_ua_client_loop, args=(client_loop,), daemon=True)
+        ua_client_thread.start()
+
+        # Run the OPC UA client
+        asyncio.run_coroutine_threadsafe(init_ua_client(), client_loop)
+        share_loop = client_loop
+        asyncio.run_coroutine_threadsafe(async_consumer(), client_loop)
+
+    except Exception as e:
+        print(f"Error starting OPC UA client: {e}")
+
+    # create flask server
+    try:
+        with app.app_context():
+            db.create_all()
+
+        print("Starting Flask server...")
+        app.run(host="localhost", port=12345,debug=True)
+    except Exception as e:
+        print(f"Error starting Flask server: {e}")
+        traceback.print_exc()
+

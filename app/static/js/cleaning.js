@@ -13,10 +13,15 @@ function initGrid(m , n)
     var canvas = document.getElementById('grid_overlay');
     // const videoElem = document.getElementById("video_player");
     var ctx = canvas.getContext('2d');  // get the canvas context
-    const player = videojs('video_player');
-    const videoElem = player.el();
+    // const player = videojs('video_player');
+    // const videoElem = player.el();
+    // const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
 
-    const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
+
+    // get image element
+    const imgElement = document.getElementById('image_container');
+    const rect = imgElement.getBoundingClientRect();
+
     GridMatrix = [];
 
     for(let i = 0; i < m; i ++)
@@ -58,13 +63,20 @@ function initGrid(m , n)
 
 let selectedGridColor = 'rgba(255, 255, 0, 0.5)';
 function clickEvent(event) {
+    console.log("clickEvent triggered");
     event.preventDefault();
     event.stopPropagation();
     // const videoElem = document.getElementById("video_player");
     if(!flagAnnotate) return;                       // if the user is not allowed to annotate, return
-    const player = videojs('video_player');
-    const videoElem = player.el();
-    const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
+    // const player = videojs('video_player');
+    // const videoElem = player.el();
+    // const player = Document.getElementById('video_player');
+    // const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
+
+    // get image element
+    const imgElement = document.getElementById('image_container');
+    const rect = imgElement.getBoundingClientRect();
+
     const m = M;
     const n = N;
     const mouse_x = event.clientX - rect.left;  // get the mouse position relative to the video element
@@ -100,17 +112,23 @@ function clickEvent(event) {
         });
 
     }
+
+
 }
 
 function submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_frame_data){
-    const form = document.getElementById('annotation_form');
-    const input = document.getElementById('annotation_data');
+    const form = document.getElementById('marks_form');
+    const input = document.getElementById('marks_data');
+
+    console.log(Annotations);
+    console.log(Current_cropped_image);
 
     // transfer the annotation to JSON format
     input.value = JSON.stringify({
         cropped: Current_cropped_image,
         frame: Current_frame_data,
         annotations: Annotations
+        // needs another variable to indicate the machine number, ex: machine_id
     });
 
     // Use fetch API to submit form asynchronously
@@ -134,16 +152,18 @@ function submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_fr
 // capture the current frame
 function captureCurrentFrame()
 {
-    const player = videojs('video_player');
-    const videoElem = player.el().querySelector('video');
+    // const player = videojs('video_player');
+    // const videoElem = player.el().querySelector('video');
+    const imgElement = document.getElementById("image_container"); // 替换为 image_container
+
     const canvas = document.createElement('canvas');
-    const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
+    const rect = imgElement.getBoundingClientRect();  // get the video element's bounding rectangle
     const ctx = canvas.getContext('2d');
 
     canvas.width = rect.width;
     canvas.height = rect.height;
 
-    ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
 
     const frameDataUrl = canvas.toDataURL('image/png');
 
@@ -193,8 +213,9 @@ function updateGrid(grid, level)
 // change the color of grid
 function choose_color(e)
 {
-    const player = videojs('video_player');
-    const videoElem = player.el();
+    // const player = videojs('video_player');
+    // const videoElem = player.el();
+    const imgElement = document.getElementById("image_container"); // 替换为 image_container
     const canvas = document.getElementById("grid_overlay");
     const ctx = canvas.getContext("2d");
     if(e.target.tagName === "A"){
@@ -228,6 +249,9 @@ function choose_color(e)
             case "_clear_":
                 this.style.display = "none";
                 ctx.clearRect(Current_grid.x1, Current_grid.y1, Current_grid.w, Current_grid.h);
+                // !!!
+                // bug to fix: the function does not delete the grid from the list(Current_cropped_image)
+                // !!!@@@
                 updateGrid(Current_grid, 0);
                 return true;
             default:
@@ -257,6 +281,8 @@ function choose_color(e)
             const annotation = {
                 startX: x1,
                 startY: y1,
+                a: a,
+                b: b,
                 width: w,
                 height: h,
                 m: M,
@@ -296,70 +322,98 @@ function generateJSON(){
     })
 }
 
+// function play_pause(){
+//     const playPauseBtn = document.getElementById('play_pause');
+//     if(videoElem.playing === "true"){
+//         fetch('/play_pause', {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json'
+//             }
+//         })
+//         .then(response => response.json())
+//         .then(data => {
+//             console.log(data);
+//             if (data.paused) {
+//                 playPauseBtn.innerHTML = "Play";    // change the button text to Pause when playing
+//             } else {
+//                 playPauseBtn.innerHTML = "Pause";   // change the button text to Play when paused
+//             }
+//         })
+//         .catch(error => {
+//             console.error(error);
+//         });
+//     }
+// }
 
-function PlayerPaused()
-{
-    const player = videojs('video_player');
-    if (player.pause){
-        console.log("Player is paused.");
+// function PlayerPaused()
+// {
+//     const player = videojs('video_player');
+//     if (player.pause){
+//         console.log("Player is paused.");
 
-        // allow user to annotate
-        flagAnnotate = true;
-        document.getElementById('upload_annotation').style.display = "inline";
-        Current_frame_data = captureCurrentFrame();
-    }
-}
+//         // allow user to annotate
+//         flagAnnotate = true;
+//         document.getElementById('upload_annotation').style.display = "inline";
+//         Current_frame_data = captureCurrentFrame();
+//     }
+// }
 
-function PlayerPlaying()
-{
-    const player = videojs('video_player');
-    if (player.play){
-        console.log("Player is playing.");
-        flagAnnotate = false;
-        document.getElementById('upload_annotation').style.display = "none";
-    }
-}
+// function PlayerPlaying()
+// {
+//     const player = videojs('video_player');
+//     if (player.play){
+//         console.log("Player is playing.");
+//         flagAnnotate = false;
+//         document.getElementById('upload_annotation').style.display = "none";
+//     }
+// }
 
-function togglePlayPause()
-{
-    const player = videojs('video_player');
-    if (player) {
-        if (player.paused())
-        {
-            player.play();
-            initGrid(M, N);
-        }
-        else
-        {
-            player.pause();
-        }
-    }
-}
+// function togglePlayPause()
+// {
+//     const player = videojs('video_player');
+//     if (player) {
+//         if (player.paused())
+//         {
+//             player.play();
+//             initGrid(M, N);
+//         }
+//         else
+//         {
+//             player.pause();
+//         }
+//     }
+// }
 
 
 document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoaded to secure the listen functions are binded after the DOM loaded
 {
     const contextMenu = document.getElementById('context_menu');
-    const container = document.getElementById('video_container');
-    const fileInput = document.getElementById("video_file_input");
+    const container = document.getElementById('image_container');
+    const fileInput = document.getElementById("image_file_input");
     // const videoElem = document.getElementById("video_player");
-    const player = videojs('video_player');
-    const videoElem = player.el();
+
+    // const player = videojs('video_player');
+    // const videoElem = player.el();
+
     const annotateUpload = document.getElementById("upload_annotation");
-    const generateJSONBtn = document.getElementById("generateJSON");
-    const playPauseBtn = document.getElementById('play_pause');
-    var foo = new EventTarget();
+    // const generateJSONBtn = document.getElementById("generateJSON");
+    // const playPauseBtn = document.getElementById('play_pause');
+
+    const imgElement = document.getElementById("image_container"); // get image_container element
+
     // const tooltip = document.getElementById('progress_tooltip');
 
     // const progressControl = player.contorlBar.progressControl;
 
 
-    player.on('pause', PlayerPaused);
-    player.on('play', PlayerPlaying);
+    // player.on('pause', PlayerPaused);
+    // player.on('play', PlayerPlaying);
 
     contextMenu.addEventListener("click", choose_color);
 
-    document.getElementById('video_container').addEventListener('click', clickEvent);
+    // add click event listener to image_container
+    container.addEventListener('click', clickEvent);
     // document.getElementById('video_container').addEventListener('click', function (event) {
 
     //     clickEvent(event);
@@ -386,90 +440,113 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     });
 
     // add a listener to adjust the overlay of the button below the video window
-    videoElem.addEventListener("loadedmetadata", () =>{
-        console.log("Video metadata loaded.");
-        console.log("videoWidth:", player.videoWidth);
-        console.log("videoHeight:", player.videoHeight);
-        container.style.height = `${player.el().offsetHeight}px`;     // get the html element of the video by template literals
-        initGrid(M, N);
-    });
+    // loadedmetadata event belongs to video or audio, not in the image
+    // imgElement.addEventListener("loadedmetadata", () =>{
+    //     // console.log("Video metadata loaded.");
+    //     // console.log("videoWidth:", player.videoWidth);
+    //     // console.log("videoHeight:", player.videoHeight);
+    //     // container.style.height = `${player.el().offsetHeight}px`;     // get the html element of the video by template literals
+    //     initGrid(M, N);
+    // });
+
 
     // change the grid size when the window is resized
-    window.addEventListener("resize", () =>{
-        if( player.videoWidth() > 0){
-            container.style.height = `${player.el().offsetHeight}px`;
-            initGrid(M, N);
-        }
-    });
+    // window.addEventListener("resize", () =>{
+    //     if( player.videoWidth() > 0){
+    //         container.style.height = `${player.el().offsetHeight}px`;
+    //         initGrid(M, N);
+    //     }
+    // });
 
-    fileInput.addEventListener("change", function(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const videoURL = URL.createObjectURL(file);
-            player.src({type: 'video/mp4', src: videoURL});
-            player.load();
-            player.play();
-            // videoElem.src = videoURL;
-            // videoElem.load();
-            // videoElem.play();
-            player.on('canplay', () => {
-                initGrid(M, N);
-            });
-        }
-    });
+    // fileInput.addEventListener("change", function(event) {
+    //     const file = event.target.files[0];
+    //     if (file) {
+    //         const videoURL = URL.createObjectURL(file);
+    //         player.src({type: 'video/mp4', src: videoURL});
+    //         player.load();
+    //         player.play();
+    //         // videoElem.src = videoURL;
+    //         // videoElem.load();
+    //         // videoElem.play();
+    //         player.on('canplay', () => {
+    //             initGrid(M, N);
+    //         });
+    //     }
+    // });
 
     // Drag the video above the window
-    document.addEventListener("drop", function(event) {
-        event.preventDefault();
-        const file = event.dataTransfer.files[0];
-        if (file && file.type.startsWith("video/")) {
-            const videoURL = URL.createObjectURL(file);
-            // videoElem.src = videoURL;
-            // videoElem.load();
-            // videoElem.play();
-            player.src({type: 'video/mp4', src: videoURL});
-            player.load();
-            player.play();
+    // document.addEventListener("drop", function(event) {
+    //     event.preventDefault();
+    //     const file = event.dataTransfer.files[0];
+    //     if (file && file.type.startsWith("video/")) {
+    //         const videoURL = URL.createObjectURL(file);
+    //         // videoElem.src = videoURL;
+    //         // videoElem.load();
+    //         // videoElem.play();
+    //         player.src({type: 'video/mp4', src: videoURL});
+    //         player.load();
+    //         player.play();
 
-            videoElem.addEventListener("canplay", () => {
-                initGrid(M, N);
-            });
-        }
-    });
+    //         imgElement.addEventListener("canplay", () => {
+    //             initGrid(M, N);
+    //         });
+    //     }
+    // });
 
-    document.getElementById("upload_button").addEventListener("click", () => {
-        document.getElementById("video_file_input").click();
-    });
+    // document.getElementById("upload_button").addEventListener("click", () => {
+    //     document.getElementById("video_file_input").click();
+    // });
 
     annotateUpload.addEventListener("click", () => {
         submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_frame_data);
         Annotations = [];
         Current_cropped_image = [];
         Current_frame_data = null;
-        document.getElementById('upload_annotation').style.display = "none";
+        // document.getElementById('upload_annotation').style.display = "none";
     });
 
-    generateJSONBtn.addEventListener("click", () => {
-        generateJSON();
-    });
+    // generateJSONBtn.addEventListener("click", () => {
+    //     generateJSON();
+    // });
 
     // bind click event on play_pause button
-    player.on('play', function() {
-        playPauseBtn.textContent = "Pause";
-    });
-    player.on('pause', () => {
-        playPauseBtn.textContent = "Play";
+    // player.on('play', function() {
+    //     playPauseBtn.textContent = "Pause";
+    // });
+    // player.on('pause', () => {
+    //     playPauseBtn.textContent = "Play";
+    // });
+
+    // playPauseBtn.addEventListener('click', togglePlayPause);
+
+    // control by Space
+    // document.addEventListener('keydown', (e) => {
+    //     if (e.code === 'Space') {
+    //         e.preventDefault();
+    //         togglePlayPause();
+    //     }
+    // });
+
+
+    document.getElementById("upload_button").addEventListener("click", () => {
+        document.getElementById("image_file_input").click();
     });
 
-    playPauseBtn.addEventListener('click', togglePlayPause);
-    // control by Space
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') {
-            e.preventDefault();
-            togglePlayPause();
+    document.getElementById("image_file_input").addEventListener("change", function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const imageURL = URL.createObjectURL(file);
+            const imgElement = document.getElementById("image_container");
+            imgElement.src = imageURL;
+            imgElement.style.display = "block";
+            imgElement.onload = () => {     // add init grid after image is loaded
+                initGrid(M, N);
+                flagAnnotate = true;
+                document.getElementById('upload_annotation').style.display = "inline";
+                Current_frame_data = captureCurrentFrame();
+            }
         }
     });
-
     // if(progressControl)
     // {
     //     const seekBar = progressControl.seekBar;
