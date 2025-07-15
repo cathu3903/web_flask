@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Video Annotation</title>
+    <title>Robot Cleaning</title>
     <link rel = "stylesheet" href= "{{ url_for('static', filename='css/style.css')}}"> </link>
     <link rel = "stylesheet" href="{{ url_for('static', filename='css/video-js-8.23.3/video-js.min.css')}}"></link>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!--
     <script src="{{ url_for('static', filename='js/video.min.js')}}"> </script>
-    <!-- <link href="//vjs.zencdn.net/7.10.2/video-js.min.css" rel="stylesheet">
+    <link href="//vjs.zencdn.net/7.10.2/video-js.min.css" rel="stylesheet">
     <script src="//vjs.zencdn.net/7.10.2/video.min.js"></script> -->
 
 </head>
@@ -14,15 +15,10 @@
     <div class="main_container">
         <div id="video_container" class = "video_container">
             <!-- video stream page-->
-            <!-- <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream" playing="true"> -->
+            <img id="image_container" src = "" alt="mark the image to control the robot" style = "display: none;">
 
             <!-- <video id="video_player" src="{{ url_for('video_feed') }}" autoplay muted controlist="nodownload" oncontextmenu="return false;"></video> -->
             <!-- <video id="video_player" src="" controls="controls" autoplay="autoplay"></video> -->
-
-            <!-- video page-->
-            <video id="video_player" autoplay="autoplay" controls="controls">
-                <source="" type="video/mp4">
-            </video>
 
             <!-- <label for="video_file_input" class="file_input_label"></label>
             <input type="file" id="video_file_input" accept="video/*"> -->
@@ -33,13 +29,12 @@
         <div id="progress_tooltip" class="progress-tooltip"></div>
         <div class="below_video_container">
             <div class="button_group">
-                <button id="generateJSON">Export</button>
-                <button id="upload_button">Upload Video</button>
-                <button id="play_pause">Play/Pause</button>
+                <button id="click_to_choose">Choose / Unchoose</button>
+                <button id="upload_button">Upload image</button>
                 <div class = "annotate_group">
-                    <button id="upload_annotation">Annotate</button>
+                    <button id="upload_annotation">Execute</button>
                 </div>
-                <input type="file" id="video_file_input" accept="video/*" style="display: none;">
+                <input type="file" id="image_file_input" accept="image/*" style="display: none;">
             </div>
             <div id = "status"> </div>
         </div>
@@ -56,7 +51,7 @@
     </div>
     <br>
 
-    <script src = "{{ url_for('static', filename='js/video_annotation.js')}}"> </script>
+    <script src = "{{ url_for('static', filename='js/cleaning.js')}}"> </script>
     <script>
         const M = {{m}};
         const N = {{n}};
@@ -64,8 +59,8 @@
     <!-- <script src="{{ url_for('static', filename='js/video.min.js')}}"> </script> -->
     <!-- <script src="{{ url_for('static', filename='js/video.js')}}"> </script> -->
 
-    <form id = "annotation_form" action = "/new_annotation" method = "POST">
-        <input type = "hidden" id = "annotation_data" name = "annotation_data">
+    <form id = "marks_form" action = "/new_actions" method = "POST">
+        <input type = "hidden" id = "marks_data" name = "marks_data">
     </form>
 
 </body>
