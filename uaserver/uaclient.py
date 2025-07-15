@@ -18,6 +18,9 @@ class UAClient:
             self.connected = False
             self.initialized = True
             self.node_cache = {}
+            # Add robot availability
+            self.robot_available = False
+            self.condition = asyncio.Condition()
 
     async def connect(self):
         """连接到OPC UA服务器"""
@@ -66,6 +69,19 @@ class UAClient:
         """确保客户端已连接，如果未连接则尝试连接"""
         if not self.connected:
             await self.connect()
+
+    async def on_robot_available_change(self, datachange_notification):
+        """处理机器人可用性更改"""
+        value = datachange_notification.MonitoredItem.Value.Value.Value
+        async with self.condition:
+            self.robot_available = value
+            self.condition.notify_all() # 唤醒所有等待的协程
+
+    async def ensure_robot_available(self):
+        """确保机器人可用"""
+        async with self.condition:
+            while not self.robot_available:
+                await self.condition.wait()
 
     async def update_variables(self, x=None, y=None, m=None, n=None, lv=None, mach_id=None):
         """

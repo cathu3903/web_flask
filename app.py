@@ -15,7 +15,7 @@ from queue import Queue, Empty
 import asyncio
 import logging
 
-# 导入uaclient模块
+# uaclient -- for the opc ua client connection
 from uaserver.uaclient import UAClient
 
 # from threading import Lock
@@ -33,8 +33,8 @@ app.config['DATA_FOLDER'] = 'data'
 os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 
 share_loop = None
-robot_task_queue = asyncio.Queue(maxsize=3)
-
+# robot_task_queue = asyncio.Queue(maxsize=3)
+robot_task_queue = Queue(maxsize=3)
 
 
 
@@ -332,7 +332,7 @@ def generate_json():
 @app.route('/clean_image', methods = ['GET', 'POST'])
 def robot_image():
     m = 5
-    n = 5
+    n = 10
     return render_template('robot_cleaning_image.html', m = m, n = n)
 
 @app.route('/new_actions', methods = ['GET', 'POST'])
@@ -395,19 +395,22 @@ def new_actions():
             grid_x = annotation['a']
             grid_y = annotation['b']
             col_m = int(annotation['m'])
-            line_n = int(annotation['n'])
+            raw_n = int(annotation['n'])
             lv= int(annotation['stainLevel'])
 
             # Enqueue the robot task, trigger the consumer
-            if share_loop is not None:
-                asyncio.run_coroutine_threadsafe(enqueue_robot_task(grid_x, grid_y, col_m, line_n, lv), share_loop)
-            else:
-                print("Share_loop is None. Error. Skipped command")
+            # if share_loop is not None:
+            #     asyncio.run_coroutine_threadsafe(enqueue_robot_task(grid_x, grid_y, col_m, raw_n, lv), share_loop)
+            # else:
+            #     print("Share_loop is None. Error. Skipped command")
+            enqueue_robot_task(grid_x, grid_y, col_m, raw_n, lv)
+
 
         db.session.commit()
 
         # Execute the robot move
-        # server_minimal.update_variables(grid_x, grid_y, col_m, line_n)
+        # This action is executed by the asynchrous consumer
+        # server_minimal.update_variables(grid_x, grid_y, col_m, raw_n)
 
         return jsonify(success = True)
 
@@ -417,61 +420,72 @@ def new_actions():
         return jsonify(success = False)
 
 
-async def enqueue_robot_task(x, y, m, n, lv, mach_id = 0):
+def enqueue_robot_task(x, y, m, n, lv, mach_id = 0):
     # robot task enqueuing
-    await robot_task_queue.put({
+    robot_task_queue.put({
         "grid_x": x,
         "grid_y": y,
         "col_m": m,
-        "line_n": n,
+        "raw_n": n,
         "lv": lv,
         "mach_id": mach_id
     })
 
-    print(f"Enqueued task: grid_x={x}, grid_y={y}, col_m={m}, line_n={n}, lv={lv}")
+    print(f"Enqueued task: grid_x={x}, grid_y={y}, col_m={m}, raw_n={n}, lv={lv}, mach_id={mach_id}")
 
-async def execute_robot_task_async(grid_x, grid_y, col_m, line_n, lv=0):
+async def execute_robot_task_async(grid_x, grid_y, col_m, raw_n, lv=0, mach_id = 0):
     """
     asynchronous function to execute a robot task
     """
     print(f"[DEBUG] Starting task execution: x={grid_x}, y={grid_y}")
     try:
-        # await server_minimal.update_variables(grid_x, grid_y, col_m, line_n)
+        # await server_minimal.update_variables(grid_x, grid_y, col_m, raw_n)
 
-        result = await ua_client.update_variables(x=grid_x, y=grid_y, m=col_m, n=line_n)
+        result = await ua_client.update_variables(x=grid_x, y=grid_y, m=col_m, n=raw_n, lv=lv, mach_id=mach_id)
 
         if result["success"]:
             print(f"[DEBUG] Task executed successfully")
         else:
             print(f"[DEBUG] Task execution partially failed: {result['failed_updates']}")
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
     except Exception as e:
         print(f"Error executing task: {e}")
         traceback.print_exc()
 
 
 
-async def async_consumer():
-    """重构任务处理器使用统一事件循环"""
-    print("Async consumer started!!!")
+async def queue_consumer():
+    '''refactor task handler to use a single event loop'''
+    print("Queue consumer started!!!")
     while True:
         try:
-            task = await asyncio.wait_for(robot_task_queue.get(), timeout=1)
+            # wait for RobotAvailable == True
+            await ua_client.ensure_robot_available()
+
+            # task = await asyncio.wait_for(robot_task_queue.get(), timeout=1)
+
+            # synchrounous get from queue
+            task = robot_task_queue.get(timeout=2)
             print(f"[DEBUG] Task fetched: {task}")
 
-            # 直接提交到当前事件循环
+            # commit to the current event loop
             await execute_robot_task_async(
                 task["grid_x"],
                 task["grid_y"],
                 task["col_m"],
-                task["line_n"],
-                task["lv"]
+                task["raw_n"],
+                task["lv"],
+                task["mach_id"]
             )
 
             robot_task_queue.task_done()
         except asyncio.TimeoutError:
             await asyncio.sleep(0.5)
+
+        except Empty:
+            await asyncio.sleep(0.2)
+            continue
         except Exception as e:
             print(f"Error processing queue: {e}")
             traceback.print_exc()
@@ -495,7 +509,6 @@ async def init_ua_client():
 
 if __name__ == '__main__':
     try:
-        # 启动OPC UA服务器线程
         opc_thread = threading.Thread(
             target=multi_thread,
             args=("OPC UA Server", 0.5),
@@ -515,7 +528,7 @@ if __name__ == '__main__':
         # Run the OPC UA client
         asyncio.run_coroutine_threadsafe(init_ua_client(), client_loop)
         share_loop = client_loop
-        asyncio.run_coroutine_threadsafe(async_consumer(), client_loop)
+        asyncio.run_coroutine_threadsafe(queue_consumer(), client_loop)
 
     except Exception as e:
         print(f"Error starting OPC UA client: {e}")
