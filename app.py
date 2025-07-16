@@ -282,6 +282,7 @@ def generate_json():
             cropped_path = os.path.join(cropped_dir, cropped_filename)
 
             # os.makedirs(os.path.dirname(cropped_path), exist_ok=True)
+            # bug: not create new folder
             with open(cropped_path, 'wb') as f:
                 f.write(cropped_encoded.tobytes())
 
@@ -462,8 +463,14 @@ async def queue_consumer():
         try:
             # wait for RobotAvailable == True
 
-            await ua_client.ensure_robot_available()
-
+            # await ua_client.ensure_robot_available()
+            client = await ua_client.get_client()
+            # robot_available_node = await client.myobj.get_child("RobotAvailable")
+            ready = await client.robot_available.get_value()
+            while not ready:
+                print("Waiting for robot to be ready...")
+                await asyncio.sleep(1)
+                ready =  await client.robot_available.get_value()
             # task = await asyncio.wait_for(robot_task_queue.get(), timeout=1)
 
             # synchrounous get from queue

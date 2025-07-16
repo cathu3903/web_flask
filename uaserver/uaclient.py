@@ -108,6 +108,9 @@ class UAClient:
 
         try:
             await self.ensure_connected()
+
+            await self.start_signal.write_value(False)
+            await asyncio.sleep(0.3)
             await self.start_signal.write_value(True)
             # if no value provided, use default values
             if x is not None:
@@ -128,8 +131,8 @@ class UAClient:
                 # "lv": await self._stain_level.get_value() if lv is not None else None,
                 # "mach_id": await self._machine_id.get_value() if mach_id is not None else None,
             }
-            await asyncio.sleep(5)
-            # await self.start_signal.write_value(False)
+
+            await self.start_signal.write_value(False)
 
             # check the values
             if x is not None and current_values["x"] != x:
