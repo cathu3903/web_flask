@@ -461,6 +461,7 @@ async def queue_consumer():
     while True:
         try:
             # wait for RobotAvailable == True
+
             await ua_client.ensure_robot_available()
 
             # task = await asyncio.wait_for(robot_task_queue.get(), timeout=1)

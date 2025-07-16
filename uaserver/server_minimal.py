@@ -15,6 +15,7 @@ _grid_n = None
 Lv = None
 MachID = None
 RobotAvailable = None
+ActionSignal = None
 
 def callback(ch, method, properties, body):
     print(f"[x] Received {body}")
@@ -39,13 +40,15 @@ async def main():
         _grid_n = await myobj.add_variable(idx, "GridN", 10)
         Lv = await myobj.add_variable(idx, "StainLevel", 0)
         MachID = await myobj.add_variable(idx, "MachineID", 0)
-        RobotAvailable = await myobj.add_variable(idx, "RobotAvailable", False)
+        RobotAvailable = await myobj.add_variable(idx, "RobotAvailable", True)
+        ActionSignal = await myobj.add_variable(idx, "ActionSignal", False)
 
         await _myvar_x.set_writable()
         await _myvar_y.set_writable()
         await _grid_m.set_writable()
         await _grid_n.set_writable()
         await RobotAvailable.set_writable()
+        await ActionSignal.set_writable()
 
         # # RabbitMQ connection
         # connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
@@ -91,7 +94,7 @@ async def main():
         _logger.info("Starting server!")
         async with _server:
             while True:
-                await asyncio.sleep(8)
+                await asyncio.sleep(5)
                 # value_1 = await myvar.get_value()
 
 
@@ -106,6 +109,7 @@ async def main():
                 value_lv = await Lv.get_value()
                 value_mach_id = await MachID.get_value()
                 value_available = await RobotAvailable.get_value()
+                value_start = await ActionSignal.get_value()
                 print(f"Current value of MyVariableX (int): {value_x}")
                 print(f"Current value of MyVariableY (int): {value_y}")
                 print(f"Current value of MyVariableM (int): {value_m}")
@@ -113,6 +117,7 @@ async def main():
                 print(f"Current value of MyVariableLV (int): {value_lv}")
                 print(f"Current value of MyVariableMachID (int): {value_mach_id}")
                 print(f"Current value of RobotAvailable (bool): {value_available}")
+                print(f"Current value of RobotStartSignal (bool): {value_start}")
 
 
                 # await myvar.write_value(value + 1)
@@ -149,13 +154,13 @@ async def update_variables(x, y, m, n, lv=0, mach_id=0):
         lv (int): stain level--0, 1, 2, 3, 4,
         mach_id (int): machine id
     """
-    global _server, _myvar_x, _myvar_y, _grid_m, _grid_n, Lv, MachID
+    global _server, _myvar_x, _myvar_y, _grid_m, _grid_n, Lv, MachID, ActionSignal
     if _server is None:
         raise RuntimeError("Server not initialized")
 
     print("Entered update_variables()")
     try:
-
+        await ActionSignal.write_value(True)
         await _myvar_x.write_value(x)
         await _myvar_y.write_value(y)
         await _grid_m.write_value(m)
