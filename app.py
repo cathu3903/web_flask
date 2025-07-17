@@ -11,6 +11,7 @@ import base64
 import traceback
 import numpy as np
 from queue import Queue, Empty
+from datetime import datetime
 import logging
 
 # uaclient -- for the opc ua client connection
@@ -23,6 +24,8 @@ db = SQLAlchemy(app)
 ORIGINAL_SAVE_FOLDER = 'original_'
 CROPPED_SAVE_FOLDER = 'cropped_'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+M = 10
+N = 10
 
 app.config['DATA_FOLDER'] = 'data'
 # make sure the data folder exists
@@ -100,8 +103,11 @@ def new_annotation():
         frame_binary = base64.b64decode(encoded)
 
         # generate unique file name
-        timestamp = int(time.time() * 1000)
-        frame_filename = f"original_{timestamp}"
+
+        timestamp = time.time()
+        datetime_obj = datetime.fromtimestamp(timestamp)
+        formatted_time = datetime_obj.strftime("%Y_%m_%d-%H_%M_%S")
+        frame_filename = f"original_{formatted_time}"
 
         # create the Frames object
         frame_record = Frames(img_original = frame_binary, img_original_path = frame_filename)
@@ -115,7 +121,7 @@ def new_annotation():
                 cropped_binary = None
                 cropped_filename = None
             else:
-                cropped_filename = f"cropped_{timestamp}_{idx}"
+                cropped_filename = f"cropped_{formatted_time}_{idx}"
                 cropped_path = os.path.join(app.config['DATA_FOLDER'], 'cropped', cropped_filename)
 
             annotation_record = Annotations(
@@ -141,14 +147,14 @@ def new_annotation():
 
 @app.route('/')
 def index():
-    m = 25
-    n = 30
+    m = M
+    n = N
     return render_template('video_annotation.html', m = m, n = n)
 
-@app.route('/video')
+@app.route('/video_annotation')
 def video():
-    m = 5
-    n = 5
+    m = M
+    n = N
     return render_template('video_cannotation.html', m = m, n = n)
 
 def gen(camera):
@@ -260,11 +266,17 @@ def generate_json():
 
     return jsonify({"success": True, "message": "JSON and cropped images generated successfully."})
 
-@app.route('/clean_image', methods = ['GET', 'POST'])
-def robot_image():
-    m = 5
-    n = 10
-    return render_template('robot_cleaning_image.html', m = m, n = n)
+@app.route('/robot_image', methods = ['GET', 'POST'])
+def image_cleaning():
+    m = M
+    n = N
+    return render_template('robot_image.html', m = m, n = n)
+
+@app.route('/robot_video', methods = ['GET', 'POST'])
+def robot_video():
+    m = M
+    n = N
+    return render_template('robot_video.html', m = m, n = n)
 
 @app.route('/new_actions', methods = ['GET', 'POST'])
 def new_actions():
@@ -292,8 +304,10 @@ def new_actions():
         frame_binary = base64.b64decode(encoded)
 
         # generate unique file name
-        timestamp = int(time.time() * 1000)
-        frame_filename = f"original_{timestamp}"
+        timestamp = time.time()
+        datetime_obj = datetime.fromtimestamp(timestamp)
+        formatted_time = datetime_obj.strftime("%Y_%m_%d-%H_%M_%S")
+        frame_filename = f"original_{formatted_time}"
 
         # create the Frames object
         frame_record = Frames(img_original = frame_binary, img_original_path = frame_filename)
@@ -307,7 +321,7 @@ def new_actions():
                 cropped_binary = None
                 cropped_filename = None
             else:
-                cropped_filename = f"cropped_{timestamp}_{idx}"
+                cropped_filename = f"cropped_{formatted_time}_{idx}"
                 cropped_path = os.path.join(app.config['DATA_FOLDER'], 'cropped', cropped_filename)
 
             annotation_record = Annotations(
@@ -339,6 +353,30 @@ def new_actions():
         print(f"Error saving annotation data: {e}")
         traceback.print_exc()
         return jsonify(success = False)
+
+@app.route('/to_robot_video')
+def to_video_cleaning():
+    return render_template('robot_video.html', m = M, n = N)
+
+@app.route("/to_robot_image")
+def to_image_cleaning():
+    return render_template("robot_image.html", m = M, n = N)
+
+@app.route("/to_video_annotation")
+def to_annotation():
+    return render_template("video_annotation.html",m = M, n = N)
+
+
+@app.route('/modify_grids', methods = ['GET', 'POST'])
+def modify_grids():
+    data = request.get_json()
+    if not data:
+        return jsonify({ "success": False, "error": "No JSON data received"} ), 400
+    ''' not finished 
+    this function allows to change the M and N on the server,
+    the M and N also changes in javascript
+    but need to do something to secure no risk
+    '''
 
 def enqueue_robot_task(x, y, m, n, lv, mach_id = 0):
     """

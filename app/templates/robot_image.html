@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Robot Cleaning</title>
-    <link rel = "stylesheet" href= "{{ url_for('static', filename='css/style.css')}}"> </link>
+    <link rel = "stylesheet" href= "{{ url_for('static', filename='css/CommonStyle.css')}}"> </link>
     <link rel = "stylesheet" href="{{ url_for('static', filename='css/video-js-8.23.3/video-js.min.css')}}"></link>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!--
@@ -29,10 +29,14 @@
         <div id="progress_tooltip" class="progress-tooltip"></div>
         <div class="below_video_container">
             <div class="button_group">
-                <button id="click_to_choose">Choose / Unchoose</button>
+{#                <button id="click_to_choose">Choose / Unchoose</button>#}
                 <button id="upload_button">Upload image</button>
                 <div class = "annotate_group">
                     <button id="upload_annotation">Execute</button>
+                </div>
+                <div>
+                    <button id="jump_to_video_annotaion">To video annotaton</button>
+                    <button id="jump_to_robot_video">To video cleaning</button>
                 </div>
                 <input type="file" id="image_file_input" accept="image/*" style="display: none;">
             </div>
