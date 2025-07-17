@@ -130,9 +130,9 @@ dependencies:
       - tifffile==2025.5.10
       - tomli-w==1.2.0
       - tomlkit==0.13.2
-      - torch==2.7.0+cu128
-      - torchaudio==2.7.0+cu128
-      - torchvision==0.22.0+cu128
+      - torch==2.7.0
+      - torchaudio==2.7.0
+      - torchvision==0.22.0
       - tqdm==4.67.1
       - typer==0.15.3
       - typing-extensions==4.12.2

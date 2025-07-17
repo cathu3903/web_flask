@@ -1,17 +1,38 @@
-import asyncio
 import logging
-from asyncua import Client, ua
+from opcua import Client, ua
+import threading
+from queue import Queue, Empty
+import time
 
 _logger = logging.getLogger(__name__)
 
+class RobotAvailabilityHandler:
+    """Handler class for robot availability data change notifications"""
+
+    def __init__(self, ua_client):
+        self.ua_client = ua_client
+
+    def datachange_notification(self, node, val, data):
+        """Handle data change notifications for robot availability"""
+        try:
+            with self.ua_client.robot_available_lock:
+                self.ua_client.robot_available = val
+                if val:
+                    self.ua_client.robot_available_event.set()
+                else:
+                    self.ua_client.robot_available_event.clear()
+            _logger.info(f"Robot availability changed to: {val}")
+        except Exception as e:
+            _logger.error(f"Error handling robot availability change: {e}")
+
 class UAClient:
-    _instance = None  # 单例模式
+    _instance = None  # Singleton pattern
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(UAClient, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, endpoint="opc.tcp://localhost:4840/freeopcua/server/"):
+    def __init__(self, endpoint="opc.tcp://127.0.0.8:4840/freeopcua/server/"):
         if not hasattr(self, 'initialized'):
             self.endpoint = endpoint
             self.client = None
@@ -19,34 +40,44 @@ class UAClient:
             self.initialized = True
             self.node_cache = {}
             self.start_signal = None
+            self.subscription = None
+            self.subscription_handle = None
             # Add robot availability
             self.robot_available = True
-            self.condition = asyncio.Condition()
+            self.robot_available_lock = threading.Lock()
+            self.robot_available_event = threading.Event()
+            self.robot_available_event.set()  # Initially set as available
+            # Create handler for robot availability changes
+            self.robot_handler = RobotAvailabilityHandler(self)
 
-    async def connect(self):
-        """连接到OPC UA服务器"""
+    def connect(self):
+        """Connect to OPC UA server"""
         try:
             self.client = Client(self.endpoint)
-            await self.client.connect()
+            self.client.connect()
             self.connected = True
             _logger.info("Successfully connected to OPC UA server")
 
-            # 获取根节点
-            root = self.client.nodes.root
+            # Get root node
+            root = self.client.get_root_node()
 
-            # 缓存常用节点
+            # Cache commonly used nodes
             try:
-                self.myobj = await root.get_child(["0:Objects", "2:MyObject"])
-                self._myvar_x = await self.myobj.get_child("2:MyVariableX")
-                self._myvar_y = await self.myobj.get_child("2:MyVariableY")
-                self._grid_m = await self.myobj.get_child("2:GridM")
-                self._grid_n = await self.myobj.get_child("2:GridN")
-                self.lv = await self.myobj.get_child("2:StainLevel")
-                self.machine_id = await self.myobj.get_child("2:MachineID")
-                self.robot_available = await self.myobj.get_child("2:RobotAvailable")
-                self.start_signal = await self.myobj.get_child("2:ActionSignal")
+                self.myobj = root.get_child(["0:Objects", "2:MyObject"])
+                self._myvar_x = self.myobj.get_child("2:MyVariableX")
+                self._myvar_y = self.myobj.get_child("2:MyVariableY")
+                self._grid_m = self.myobj.get_child("2:GridM")
+                self._grid_n = self.myobj.get_child("2:GridN")
+                self.lv = self.myobj.get_child("2:StainLevel")
+                self.machine_id = self.myobj.get_child("2:MachineID")
+                self.robot_available_node = self.myobj.get_child("2:RobotAvailable")
+                self.start_signal = self.myobj.get_child("2:ActionSignal")
 
-                # 将变量存储在缓存中
+                # Subscribe to RobotAvailable variable with proper handler
+                self.subscription = self.client.create_subscription(500, self.robot_handler)
+                self.subscription_handle = self.subscription.subscribe_data_change(self.robot_available_node)
+
+                # Store variables in cache
                 self.node_cache = {
                     'x': self._myvar_x,
                     'y': self._myvar_y,
@@ -57,109 +88,132 @@ class UAClient:
                     'start_signal': self.start_signal
                 }
 
-                _logger.info("Successfully retrieved OPC UA nodes")
+                _logger.info("Successfully retrieved OPC UA nodes and set up subscription")
             except Exception as e:
                 _logger.error(f"Failed to get nodes: {e}")
-                await self.disconnect()
+                self.disconnect()
 
         except Exception as e:
             _logger.error(f"Connection to OPC UA server failed: {e}")
             self.connected = False
 
-    async def disconnect(self):
-        """断开与OPC UA服务器的连接"""
-        if self.client and self.connected:
-            await self.client.disconnect()
-        self.connected = False
-        _logger.info("Disconnected from OPC UA server")
+    def disconnect(self):
+        """Disconnect from OPC UA server"""
+        try:
+            # Clean up subscription
+            if self.subscription and self.subscription_handle:
+                self.subscription.unsubscribe(self.subscription_handle)
+                self.subscription_handle = None
 
-    async def ensure_connected(self):
-        """确保客户端已连接，如果未连接则尝试连接"""
+            if self.subscription:
+                self.subscription.delete()
+                self.subscription = None
+
+            if self.client and self.connected:
+                self.client.disconnect()
+
+        except Exception as e:
+            _logger.error(f"Error during disconnect: {e}")
+        finally:
+            self.connected = False
+            _logger.info("Disconnected from OPC UA server")
+
+    def ensure_connected(self):
+        """Ensure client is connected, try to connect if not"""
         if not self.connected:
-            await self.connect()
+            self.connect()
 
-    async def on_robot_available_change(self, datachange_notification):
-        """处理机器人可用性更改"""
-        value = datachange_notification.MonitoredItem.Value.Value.Value
-        async with self.condition:
-            self.robot_available = value
-            self.condition.notify_all() # 唤醒所有等待的协程
+    def wait_for_robot_available(self, timeout=None):
+        """Wait for robot to be available"""
+        return self.robot_available_event.wait(timeout)
 
-    async def ensure_robot_available(self):
-        """确保机器人可用"""
-        async with self.condition:
-            while not self.robot_available:
-                await self.condition.wait()
+    def get_robot_availability(self):
+        """Get current robot availability status"""
+        with self.robot_available_lock:
+            return self.robot_available
 
-    async def update_variables(self, x=None, y=None, m=None, n=None, lv=None, mach_id=None):
+    def update_variables(self, x=None, y=None, m=None, n=None, lv=None, mach_id=None):
         """
-        更新OPC UA服务器上的变量
-
-        Args:
-            x (int): 值来更新 MyVariableX
-            y (int): 值来更新 MyVariableY
-            m (int): 值来更新 GridM
-            n (int): 值来更新 GridN
-
-        Returns:
-            dict: 包含成功和失败信息的字典
+        Update variables on OPC UA server
         """
         result = {"success": True, "failed_updates": []}
 
         try:
-            await self.ensure_connected()
+            self.ensure_connected()
 
-            await self.start_signal.write_value(False)
-            await asyncio.sleep(0.3)
-            await self.start_signal.write_value(True)
-            # if no value provided, use default values
+            # Wait for robot to be available
+            if not self.wait_for_robot_available(timeout=30):  # 30 seconds timeout
+                result["success"] = False
+                result["error"] = "Timeout waiting for robot to become available"
+                return result
+
+            # Set action signal
+            self.start_signal.set_value(False)
+            time.sleep(0.3)
+            self.start_signal.set_value(True)
+
+            # Update variables
             if x is not None:
-                await self._myvar_x.write_value(x)
+                self._myvar_x.set_value(x)
             if y is not None:
-                await self._myvar_y.write_value(y)
+                self._myvar_y.set_value(y)
             if m is not None:
-                await self._grid_m.write_value(m)
+                self._grid_m.set_value(m)
             if n is not None:
-                await self._grid_n.write_value(n)
+                self._grid_n.set_value(n)
+            if lv is not None:
+                self.lv.set_value(lv)
+            if mach_id is not None:
+                self.machine_id.set_value(mach_id)
 
-            # valid the writing operation
+            # Validate write operations
             current_values = {
-                "x": await self._myvar_x.get_value() if x is not None else None,
-                "y": await self._myvar_y.get_value() if y is not None else None,
-                "m": await self._grid_m.get_value() if m is not None else None,
-                "n": await self._grid_n.get_value() if n is not None else None,
-                # "lv": await self._stain_level.get_value() if lv is not None else None,
-                # "mach_id": await self._machine_id.get_value() if mach_id is not None else None,
+                "x": self._myvar_x.get_value() if x is not None else None,
+                "y": self._myvar_y.get_value() if y is not None else None,
+                "m": self._grid_m.get_value() if m is not None else None,
+                "n": self._grid_n.get_value() if n is not None else None,
             }
 
-            await self.start_signal.write_value(False)
+            # Reset action signal
+            self.start_signal.set_value(False)
 
-            # check the values
-            if x is not None and current_values["x"] != x:
-                result["failed_updates"].append({"variable": "x", "expected": x, "actual": current_values["x"]})
-            if y is not None and current_values["y"] != y:
-                result["failed_updates"].append({"variable": "y", "expected": y, "actual": current_values["y"]})
-            if m is not None and current_values["m"] != m:
-                result["failed_updates"].append({"variable": "m", "expected": m, "actual": current_values["m"]})
-            if n is not None and current_values["n"] != n:
-                result["failed_updates"].append({"variable": "n", "expected": n, "actual": current_values["n"]})
+            # Check values
+            for var_name, expected, actual in [
+                ("x", x, current_values["x"]),
+                ("y", y, current_values["y"]),
+                ("m", m, current_values["m"]),
+                ("n", n, current_values["n"]),
+            ]:
+                if expected is not None and expected != actual:
+                    result["failed_updates"].append({
+                        "variable": var_name,
+                        "expected": expected,
+                        "actual": actual
+                    })
 
             if result["failed_updates"]:
                 result["success"] = False
                 _logger.warning(f"Some variable updates failed: {result['failed_updates']}")
             else:
                 _logger.info(f"Successfully updated variables: x={x}, y={y}, m={m}, n={n}")
-            return result
 
         except Exception as e:
             _logger.error(f"Error updating variables: {e}")
             result["success"] = False
             result["error"] = str(e)
-            return result
+
+        return result
 
     @classmethod
-    async def get_client(cls):
-        """获取已连接的客户端实例"""
+    def get_client(cls):
+        """Get connected client instance"""
         client = cls()
-        await client.ensure_connected()
+        client.ensure_connected()
         return client
+
+    def __del__(self):
+        """Cleanup when object is destroyed"""
+        try:
+            self.disconnect()
+        except:
+            pass
