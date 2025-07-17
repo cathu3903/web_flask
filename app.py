@@ -12,6 +12,9 @@ import traceback
 import numpy as np
 from queue import Queue, Empty
 from datetime import datetime
+from ultralytics import YOLO
+from PIL import Image
+import io
 import logging
 
 # uaclient -- for the opc ua client connection
@@ -24,6 +27,12 @@ db = SQLAlchemy(app)
 ORIGINAL_SAVE_FOLDER = 'original_'
 CROPPED_SAVE_FOLDER = 'cropped_'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+app.config['YOLO_MODEL_PATH'] = 'yolo_trained_model/best_v11_25_7_17.pt'
+app.config['INFERENCE_IMAGE_SIZE'] = int(640)
+app.config['CONF_THRESHOLD'] = float(0.5)
+
+
 M = 10
 N = 10
 
@@ -356,15 +365,17 @@ def new_actions():
 
 @app.route('/to_robot_video')
 def to_video_cleaning():
-    return render_template('robot_video.html', m = M, n = N)
+    return redirect(url_for('robot_video' , m = M, n = N))
 
 @app.route("/to_robot_image")
 def to_image_cleaning():
-    return render_template("robot_image.html", m = M, n = N)
+    # return render_template("robot_image.html", m = M, n = N)
+    return redirect(url_for('image_cleaning' , m = M, n = N))
 
 @app.route("/to_video_annotation")
 def to_annotation():
-    return render_template("video_annotation.html",m = M, n = N)
+    # return render_template("video_annotation.html",m = M, n = N)
+    return  redirect(url_for('video_annotation' , m = M, n = N))
 
 
 @app.route('/modify_grids', methods = ['GET', 'POST'])
@@ -377,6 +388,153 @@ def modify_grids():
     the M and N also changes in javascript
     but need to do something to secure no risk
     '''
+
+def yolo_inference_from_image(image):
+    model = YOLO(str(app.config['YOLO_MODEL_PATH']))
+    results = model.predict(source=image, imgsz=app.config['INFERENCE_IMAGE_SIZE'], conf=app.config['CONF_THRESHOLD'])
+    for result in results:
+        # Process results list
+        boxes = result.boxes  # Boxes object for bounding box outputs
+        masks = result.masks  # Masks object for segmentation masks outputs
+        keypoints = result.keypoints  # Keypoints object for pose outputs
+        probs = result.probs  # Probs object for classification outputs
+        obb = result.obb  # Oriented boxes object for OBB outputs
+
+        print("boxes:", boxes)
+        print("masks:", masks)
+        print("keypoints:", keypoints)
+        print("probs:", probs)
+        print("obb:", obb)
+        result.show()  # display to screen
+    return results
+
+@app.route('/yolo_inference', methods=['POST'])
+def yolo_inference_api():
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return jsonify({'success': False, 'error': 'No image selected'}), 400
+        
+        # 获取其他参数
+        # model_id = request.form.get('model_id', 'yolov11n.pt')
+        image_size = int(request.form.get('image_size', 640))
+        conf_threshold = float(request.form.get('conf_threshold', 0.5))
+        
+        # 读取图片
+        image_bytes = image_file.read()
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # 使用配置的模型路径
+        model_path = app.config['YOLO_MODEL_PATH']
+        
+        # 初始化YOLO模型
+        model = YOLO(model_path)
+
+        # 进行推理
+        results = model.predict(
+            source=image,
+            imgsz=image_size,
+            conf=conf_threshold,
+            verbose=False
+        )
+        
+        # 处理推理结果
+        detections = []
+        
+        if results and len(results) > 0:
+            result = results[0]
+            
+            # 获取带注释的图片
+            annotated_image_array = result.plot()
+
+            annotated_image_rgb = cv2.cvtColor(annotated_image_array, cv2.COLOR_BGR2RGB)
+            
+            # 转换为PIL图像
+            result_image = Image.fromarray(annotated_image_rgb)
+            
+            # 转换为base64
+            buffered = io.BytesIO()
+            result_image.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            annotated_image = f"data:image/png;base64,{img_str}"
+            
+            # 提取检测框信息
+            if result.boxes is not None:
+                boxes = result.boxes
+                for i in range(len(boxes)):
+                    # 获取边界框坐标 (x1, y1, x2, y2)
+                    box_coords = boxes.xyxy[i].cpu().numpy().tolist()
+                    
+                    # 获取置信度
+                    confidence = float(boxes.conf[i].cpu().numpy())
+                    
+                    # 获取类别ID
+                    class_id = int(boxes.cls[i].cpu().numpy())
+                    
+                    # 获取类别名称
+                    class_name = model.names[class_id] if class_id < len(model.names) else f"class_{class_id}"
+                    
+                    # 计算中心点和宽高
+                    x1, y1, x2, y2 = box_coords
+                    center_x = (x1 + x2) / 2
+                    center_y = (y1 + y2) / 2
+                    width = x2 - x1
+                    height = y2 - y1
+                    
+                    detection = {
+                        'id': i,
+                        'class_id': class_id,
+                        'class_name': class_name,
+                        'confidence': confidence,
+                        'bbox': {
+                            'x1': x1,
+                            'y1': y1,
+                            'x2': x2,
+                            'y2': y2,
+                            'center_x': center_x,
+                            'center_y': center_y,
+                            'width': width,
+                            'height': height
+                        },
+                        'position': {
+                            'x': center_x,
+                            'y': center_y
+                        }
+                    }
+                    detections.append(detection)
+            
+            return jsonify({
+                'success': True,
+                'annotated_image': annotated_image,
+                'grid_m': M,
+                'grid_n': N,
+                'detections': detections,
+                'total_detections': len(detections)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No detection results',
+                'annotated_image': None,
+                'detections': [],
+                'total_detections': 0
+            })
+            
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"Error in yolo_inference_api: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False, 
+            'error': error_msg,
+            'detections': [],
+            'total_detections': 0
+        }), 500
+
 
 def enqueue_robot_task(x, y, m, n, lv, mach_id = 0):
     """
@@ -495,7 +653,7 @@ if __name__ == '__main__':
             db.create_all()
 
         print("Starting Flask server...")
-        app.run(host="localhost", port=12345, debug=True)
+        app.run(host="localhost", port=12345, debug=False, use_reloader=False)
     except Exception as e:
         print(f"Error starting Flask server: {e}")
         traceback.print_exc()

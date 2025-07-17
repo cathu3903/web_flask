@@ -1,24 +1,11 @@
-// Robot Video 页面的 JavaScript 文件 - 精简版YOLOv11虾皮检测
-// 专门针对单一类别 shrimp_skin 检测
-
+// Robot Video 页面的 JavaScript 文件 - 简化版，直接发送到后端服务器
 let Current_frame_data = null;
 let flagAIRecognition = false;
 let player = null;
-let yoloModel = null;
-let isModelLoaded = false;
 let playerInitialized = false;
 
 // 存储检测结果的变量 - 格式: [{id: 1, position: {x: 100, y: 200}}, ...]
 let detectionResults = [];
-
-// 精简的模型配置 - 仅针对虾皮检测
-const MODEL_CONFIG = {
-    inputSize: 640,
-    confidenceThreshold: 0.5,
-    nmsThreshold: 0.4,
-    className: 'shrimp_skin',
-    detectionColor: '#FF0000'  // 红色检测框
-};
 
 // 初始化视频播放器
 function initVideoPlayer() {
@@ -74,6 +61,7 @@ function initVideoPlayer() {
         player.ready(() => {
             console.log('Video player is ready');
             updatePauseButtonState();
+            updateAIRecognitionButton();
         });
         
         return player;
@@ -100,6 +88,28 @@ function updatePauseButtonState() {
         }
     } catch (error) {
         console.error('Error updating pause button state:', error);
+    }
+}
+
+// 更新AI Recognition按钮状态
+function updateAIRecognitionButton() {
+    const aiButton = document.getElementById('ai_recognition_button');
+    if (!aiButton) return;
+    
+    try {
+        if (flagAIRecognition && Current_frame_data) {
+            // 暂停状态且有帧数据时启用按钮
+            aiButton.disabled = false;
+            aiButton.classList.remove('btn-ai-disabled');
+            aiButton.classList.add('btn-ai');
+        } else {
+            // 其他状态时禁用按钮
+            aiButton.disabled = true;
+            aiButton.classList.remove('btn-ai');
+            aiButton.classList.add('btn-ai-disabled');
+        }
+    } catch (error) {
+        console.error('Error updating AI recognition button state:', error);
     }
 }
 
@@ -178,36 +188,6 @@ function onVideoResize() {
     adjustVideoContainer();
 }
 
-// 加载YOLOv11模型
-async function loadYOLOModel(modelFile) {
-    try {
-        updateStatus('Loading YOLOv11 shrimp_skin detection model...');
-        
-        const session = new onnx.InferenceSession();
-        const arrayBuffer = await modelFile.arrayBuffer();
-        await session.loadModel(arrayBuffer);
-        
-        yoloModel = session;
-        isModelLoaded = true;
-        
-        updateStatus('YOLOv11 model loaded successfully');
-        
-        // 启用AI识别按钮
-        const aiButton = document.getElementById('ai_recognition_button');
-        if (aiButton) {
-            aiButton.disabled = false;
-            aiButton.classList.remove('btn-ai');
-            aiButton.classList.add('btn-ai-enabled');
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('Error loading YOLOv11 model:', error);
-        updateStatus('Error loading model: ' + error.message);
-        return false;
-    }
-}
-
 // 视频事件处理函数
 function onPlayerPaused() {
     console.log("Video paused");
@@ -217,6 +197,7 @@ function onPlayerPaused() {
     Current_frame_data = captureCurrentFrame();
     
     updateStatus('Video paused - AI Recognition available');
+    updateAIRecognitionButton();
 }
 
 function onPlayerPlaying() {
@@ -227,6 +208,7 @@ function onPlayerPlaying() {
     Current_frame_data = null;
     
     updateStatus('Video playing');
+    updateAIRecognitionButton();
 }
 
 function onVideoLoaded() {
@@ -239,6 +221,7 @@ function onVideoLoaded() {
         setTimeout(() => {
             adjustVideoContainer();
             updatePauseButtonState();
+            updateAIRecognitionButton();
         }, 100);
         
         updateStatus('Video uploaded and playing');
@@ -255,6 +238,7 @@ function onVideoCanPlay() {
         setTimeout(() => {
             adjustVideoContainer();
             updatePauseButtonState();
+            updateAIRecognitionButton();
         }, 100);
         
         updateStatus('Video ready to play');
@@ -290,6 +274,7 @@ function togglePlayPause() {
         if (player.paused()) {
             player.play().then(() => {
                 updatePauseButtonState();
+                updateAIRecognitionButton();
             }).catch(error => {
                 console.error('Error playing video:', error);
                 updateStatus('Error playing video');
@@ -297,6 +282,7 @@ function togglePlayPause() {
         } else {
             player.pause();
             updatePauseButtonState();
+            updateAIRecognitionButton();
         }
     } catch (error) {
         console.error('Error toggling play/pause:', error);
@@ -326,6 +312,154 @@ function captureCurrentFrame() {
     }
 }
 
+// 修改后的 performAIRecognition 函数
+async function performAIRecognition() {
+    if (!flagAIRecognition) {
+        updateStatus('Please pause the video first for AI recognition');
+        return;
+    }
+    
+    if (!Current_frame_data) {
+        updateStatus('No frame data available');
+        return;
+    }
+    
+    // 更新图片区域显示文字为等待状态
+    updateImagePlaceholder('Waiting for server result...');
+    updateStatus('AI Recognition in progress...');
+    
+    try {
+        // 将base64图片数据转换为blob格式
+        const response = await fetch(Current_frame_data);
+        const blob = await response.blob();
+        
+        // 创建FormData对象发送图片
+        const formData = new FormData();
+        formData.append('image', blob, 'frame.png');
+        formData.append('model_id', 'yolov11n.pt'); // 你可以根据实际模型名称调整
+        formData.append('image_size', '640');
+        formData.append('conf_threshold', '0.5');
+        
+        // 发送到Flask后端
+        const apiResponse = await fetch('/yolo_inference', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!apiResponse.ok) {
+            throw new Error(`HTTP error! status: ${apiResponse.status}`);
+        }
+        
+        const result = await apiResponse.json();
+        
+        // 检查是否有识别结果
+        if (result.success && result.annotated_image) {
+            // 显示识别结果图片
+            displayRecognitionResult(result.annotated_image);
+            
+            // 绘制红色网格 (假设使用 M x N 网格)
+            drawRedGrid(result.grid_m || 10, result.grid_n || 10);
+            
+            // 更新检测信息
+            if (result.detections && result.detections.length > 0) {
+                updateDetectionInfo(`Found ${result.detections.length} objects detected`);
+            } else {
+                updateDetectionInfo('No objects detected');
+            }
+            
+            updateStatus('AI Recognition completed successfully');
+        } else {
+            // 如果没有识别结果，显示原图
+            displayRecognitionResult(Current_frame_data);
+            updateDetectionInfo('No objects detected');
+            updateStatus('AI Recognition completed - No objects found');
+        }
+        
+    } catch (error) {
+        console.error('Error during AI recognition:', error);
+        updateStatus('AI Recognition failed: ' + error.message);
+        updateImagePlaceholder('Detection results will appear here');
+    }
+}
+
+// 更新图片占位符文字
+function updateImagePlaceholder(text) {
+    const placeholder = document.querySelector('.image_placeholder p');
+    if (placeholder) {
+        placeholder.textContent = text;
+    }
+}
+
+// 显示识别结果
+function displayRecognitionResult(imageData) {
+    const imageDisplay = document.getElementById('image_display');
+    const placeholder = document.querySelector('.image_placeholder');
+    const canvas = document.getElementById('detection_canvas');
+    
+    if (imageDisplay && placeholder) {
+        // 隐藏占位符，显示图片
+        placeholder.style.display = 'none';
+        imageDisplay.style.display = 'block';
+        imageDisplay.src = imageData;
+        
+        // 如果有canvas，也显示
+        if (canvas) {
+            canvas.style.display = 'block';
+        }
+    }
+}
+
+// 在图片区域上方绘制红色网格
+function drawRedGrid(m, n) {
+    const canvas = document.getElementById('detection_canvas');
+    const imageDisplay = document.getElementById('image_display');
+    
+    if (!canvas || !imageDisplay) return;
+    
+    // 等待图片加载完成
+    imageDisplay.onload = function() {
+        const ctx = canvas.getContext('2d');
+        const rect = imageDisplay.getBoundingClientRect();
+        
+        // 设置canvas尺寸与图片一致
+        canvas.width = imageDisplay.naturalWidth || imageDisplay.width;
+        canvas.height = imageDisplay.naturalHeight || imageDisplay.height;
+        
+        // 设置canvas样式位置覆盖在图片上
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.pointerEvents = 'none'; // 允许点击穿透
+        
+        // 清除之前的绘制
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 设置红色网格样式
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        
+        // 绘制垂直线
+        for (let i = 1; i < m; i++) {
+            const x = (canvas.width / m) * i;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        
+        // 绘制水平线
+        for (let i = 1; i < n; i++) {
+            const y = (canvas.height / n) * i;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+    };
+}
+
 // 处理视频文件上传
 function handleVideoUpload(file) {
     if (!file || !file.type.startsWith('video/')) {
@@ -347,269 +481,77 @@ function handleVideoUpload(file) {
         // 重置容器状态
         const videoSection = document.querySelector('.video_section');
         const imageSection = document.querySelector('.image_section');
-        const videoContainer = document.querySelector('.video_container');
-        const imageContainer = document.querySelector('.image_container');
         
-        // 修复：使用 videoContainer 而不是 container
-        if (videoContainer) {
-            videoContainer.classList.remove('has-video');
-            videoContainer.classList.add('no-video');
+        if (videoSection) videoSection.classList.remove('video-loaded');
+        if (imageSection) imageSection.classList.remove('video-loaded');
+        
+        // 重置检测结果
+        detectionResults = [];
+        const imageDisplay = document.getElementById('image_display');
+        const placeholder = document.querySelector('.image_placeholder');
+        const canvas = document.getElementById('detection_canvas');
+        
+        if (imageDisplay) imageDisplay.style.display = 'none';
+        if (canvas) canvas.style.display = 'none';
+        if (placeholder) {
+            placeholder.style.display = 'block';
+            updateImagePlaceholder('Detection results will appear here');
         }
-        
-        if (videoSection) {
-            videoSection.classList.remove('video-loaded');
-        }
-        
-        if (imageSection) {
-            imageSection.classList.remove('video-loaded');
-        }
-        
-        if (imageContainer) {
-            imageContainer.style.height = '300px';
-        }
-        
-        // 清除之前的错误状态
-        player.error(null);
         
         // 设置视频源
-        player.src({
-            type: file.type,
-            src: videoURL
-        });
+        player.src({ type: file.type, src: videoURL });
         
-        // 监听视频加载完成
-        player.one('loadedmetadata', () => {
-            // 调整容器大小
-            setTimeout(() => {
-                adjustVideoContainer();
-                updatePauseButtonState();
-            }, 100);
-            
-            updateStatus('Video uploaded successfully');
-        });
+        // 重置AI识别状态
+        flagAIRecognition = false;
+        Current_frame_data = null;
+        updateAIRecognitionButton();
         
-        // 监听加载错误
-        player.one('error', () => {
-            updateStatus('Error loading video file');
-        });
+        console.log('Video uploaded successfully');
         
-        player.load();
     } catch (error) {
-        console.error('Error handling video upload:', error);
+        console.error('Error uploading video:', error);
         updateStatus('Error uploading video: ' + error.message);
     }
 }
 
-// 窗口大小调整处理
-function handleResize() {
-    console.log('Window resize event');
-    if (player && player.videoWidth && player.videoWidth() > 0) {
-        // 延迟调整，确保DOM已经更新
-        setTimeout(() => {
-            adjustVideoContainer();
-        }, 100);
-    }
-}
-
-// 更新状态显示
+// 状态更新函数
 function updateStatus(message) {
     const statusElement = document.getElementById('status');
     if (statusElement) {
-        statusElement.textContent = `Status: ${message}`;
-        console.log('Status:', message);
+        statusElement.textContent = message;
     }
 }
 
-// 更新检测信息显示
 function updateDetectionInfo(message) {
-    const infoElement = document.getElementById('detection_info');
-    if (infoElement) {
-        infoElement.innerHTML = `<strong>Detection Info:</strong> ${message}`;
-        infoElement.classList.add('show');
-        
-        // 5秒后自动隐藏
-        setTimeout(() => {
-            infoElement.classList.remove('show');
-        }, 5000);
-    }
-}
-
-// 键盘事件处理
-function handleKeydown(event) {
-    switch(event.code) {
-        case 'Space':
-            event.preventDefault();
-            togglePlayPause();
-            break;
-        case 'KeyA':
-            if (event.ctrlKey) {
-                event.preventDefault();
-                performAIRecognition();
-            }
-            break;
-        case 'KeyE':
-            if (event.ctrlKey) {
-                event.preventDefault();
-                executeRobotAction();
-            }
-            break;
-    }
-}
-
-// 页面跳转功能
-function jumpToRobotImage() {
-    window.location.href = '/robot_image';
-}
-
-function jumpToVideoAnnotation() {
-    window.location.href = '/video_annotation';
-}
-
-// 执行机器人动作功能
-function executeRobotAction() {
-    const results = getCurrentDetectionResults();
-    
-    if (results.length === 0) {
-        updateStatus('No detection results available for robot action');
-        return;
-    }
-    
-    updateStatus('Executing robot action with detection results...');
-    
-    // 发送检测结果到后端
-    fetch('/execute_robot_action', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            frame_data: Current_frame_data,
-            detection_results: results,
-            timestamp: new Date().toISOString()
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Robot action executed with results:', data);
-        updateStatus('Robot action executed successfully');
-    })
-    .catch(error => {
-        console.error('Error executing robot action:', error);
-        updateStatus('Error executing robot action');
-    });
-}
-
-// 获取当前检测结果
-function getCurrentDetectionResults() {
-    return detectionResults;
-}
-
-// 模拟AI识别功能
-async function performAIRecognition() {
-    if (!flagAIRecognition) {
-        updateStatus('Please pause the video first for AI recognition');
-        return;
-    }
-    
-    if (!Current_frame_data) {
-        updateStatus('No frame data available');
-        return;
-    }
-    
-    if (!isModelLoaded) {
-        updateStatus('Please load YOLOv11 model first');
-        return;
-    }
-    
-    updateStatus('AI Recognition in progress...');
-    
-    // 模拟结果
-    setTimeout(() => {
-        const mockResults = [
-            { id: 1, position: { x: 150, y: 200 } },
-            { id: 2, position: { x: 300, y: 150 } }
-        ];
-        
-        detectionResults = mockResults;
-        displayRecognitionResult();
-        
-        if (mockResults.length > 0) {
-            const positions = mockResults.map(r => `(${r.position.x}, ${r.position.y})`).join(', ');
-            updateDetectionInfo(`Found ${mockResults.length} shrimp_skin objects at: ${positions}`);
-        } else {
-            updateDetectionInfo('No shrimp_skin objects detected');
-        }
-        
-        updateStatus('AI Recognition completed');
-    }, 2000);
-}
-
-// 显示识别结果
-function displayRecognitionResult() {
-    const imageDisplay = document.getElementById('image_display');
-    const imagePlaceholder = document.querySelector('.image_placeholder');
-    
-    if (Current_frame_data && imageDisplay) {
-        imageDisplay.src = Current_frame_data;
-        imageDisplay.style.display = 'block';
-        if (imagePlaceholder) {
-            imagePlaceholder.style.display = 'none';
-        }
+    const detectionInfoElement = document.getElementById('detection_info');
+    if (detectionInfoElement) {
+        detectionInfoElement.textContent = message;
     }
 }
 
 // DOM加载完成后的初始化
-document.addEventListener("DOMContentLoaded", function() {
-    console.log("Robot Video with YOLOv11 Shrimp Detection loaded");
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded');
     
     // 初始化视频播放器
-    const playerInstance = initVideoPlayer();
-    if (!playerInstance) {
-        console.error('Failed to initialize video player');
-        updateStatus('Error initializing video player');
-        return;
-    }
+    initVideoPlayer();
     
-    // 获取DOM元素
-    const fileInput = document.getElementById('video_file_input');
-    const modelFileInput = document.getElementById('model_file_input');
+    // 绑定事件监听器
     const uploadButton = document.getElementById('upload_video_button');
-    const loadModelButton = document.getElementById('load_model_button');
+    const fileInput = document.getElementById('video_file_input');
     const pauseButton = document.getElementById('pause_button');
     const aiRecognitionButton = document.getElementById('ai_recognition_button');
-    const executeButton = document.getElementById('execute_button');
-    const jumpToRobotImageButton = document.getElementById('jump_to_robot_image');
-    const jumpToVideoAnnotationButton = document.getElementById('jump_to_video_annotation');
     
-    // 初始状态：禁用AI识别按钮
-    if (aiRecognitionButton) {
-        aiRecognitionButton.disabled = true;
-    }
-    
-    // 事件监听器
-    if (uploadButton) {
+    if (uploadButton && fileInput) {
         uploadButton.addEventListener('click', () => {
-            if (fileInput) fileInput.click();
+            fileInput.click();
         });
-    }
-    
-    if (loadModelButton) {
-        loadModelButton.addEventListener('click', () => {
-            if (modelFileInput) modelFileInput.click();
-        });
-    }
-    
-    if (fileInput) {
-        fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) handleVideoUpload(file);
-        });
-    }
-    
-    if (modelFileInput) {
-        modelFileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) loadYOLOModel(file);
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleVideoUpload(file);
+            }
         });
     }
     
@@ -621,59 +563,23 @@ document.addEventListener("DOMContentLoaded", function() {
         aiRecognitionButton.addEventListener('click', performAIRecognition);
     }
     
-    if (executeButton) {
-        executeButton.addEventListener('click', executeRobotAction);
-    }
+    // 页面跳转按钮事件
+    const jumpToImageButton = document.getElementById('jump_to_robot_image');
+    const jumpToAnnotationButton = document.getElementById('jump_to_video_annotation');
     
-    if (jumpToRobotImageButton) {
-        jumpToRobotImageButton.addEventListener('click', jumpToRobotImage);
-    }
-    
-    if (jumpToVideoAnnotationButton) {
-        jumpToVideoAnnotationButton.addEventListener('click', jumpToVideoAnnotation);
-    }
-    
-    // 全局事件监听
-    window.addEventListener('resize', handleResize);
-    document.addEventListener('keydown', handleKeydown);
-    
-    // 拖拽上传支持
-    const videoContainer = document.querySelector('.video_container');
-    if (videoContainer) {
-        videoContainer.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            videoContainer.classList.add('drag-over');
-        });
-        
-        videoContainer.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            videoContainer.classList.remove('drag-over');
-        });
-        
-        videoContainer.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            videoContainer.classList.remove('drag-over');
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleVideoUpload(files[0]);
-            }
+    if (jumpToImageButton) {
+        jumpToImageButton.addEventListener('click', () => {
+            window.location.href = '/image_cleaning';
         });
     }
     
-    updateStatus('YOLOv11 Shrimp Detection ready - Please upload a video and load model');
-});
-
-// 页面卸载时清理
-window.addEventListener('beforeunload', function() {
-    if (player && playerInitialized) {
-        try {
-            player.dispose();
-        } catch (error) {
-            console.error('Error disposing video player:', error);
-        }
+    if (jumpToAnnotationButton) {
+        jumpToAnnotationButton.addEventListener('click', () => {
+            window.location.href = '/to_annotation';
+        });
     }
+    
+    // 初始化状态
+    updateStatus('Ready - Please upload a video file');
+    updateAIRecognitionButton();
 });
