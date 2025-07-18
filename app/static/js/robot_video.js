@@ -7,6 +7,176 @@ let playerInitialized = false;
 // 存储检测结果的变量 - 格式: [{id: 1, position: {x: 100, y: 200}}, ...]
 let detectionResults = [];
 
+// 新增：网格参数（从后端获取或默认值）
+let gridM = 10;
+let gridN = 10;
+let Is_context_menu_just_shown = false;
+
+// 新增：颜色映射
+const stainLevelColors = {
+    0: "rgba(255, 255, 255, 0.5)",  // white
+    1: "rgba(0, 255, 0, 0.5)",      // green - 默认值
+    2: "rgba(255, 255, 0, 0.5)",    // yellow
+    3: "rgba(0, 0, 255, 0.5)",      // blue
+    4: "rgba(255, 0, 0, 0.5)"       // red
+};
+
+// 二维数组存储网格状态
+let GridMatrix = [];
+
+// Map存储详细信息，key为 "a,b" 格式
+let GridDataMap = new Map();
+
+// 初始化网格
+function initGridData(m, n) {
+    GridMatrix = [];
+    GridDataMap.clear();
+    
+    for(let i = 0; i < m; i++) {
+        GridMatrix[i] = [];
+        for(let j = 0; j < n; j++) {
+            GridMatrix[i][j] = {
+                stainLevel: 0,
+                hasData: false
+            };
+        }
+    }
+}
+
+// 添加网格数据
+function addGridData(a, b, gridInfo) {
+    const key = `${a},${b}`;
+    
+    // 更新二维数组
+    GridMatrix[a][b] = {
+        stainLevel: gridInfo.stainLevel,
+        hasData: true
+    };
+    
+    // 更新Map
+    GridDataMap.set(key, {
+        startX: gridInfo.startX,
+        startY: gridInfo.startY,
+        width: gridInfo.width,
+        height: gridInfo.height,
+        m: gridInfo.m,
+        n: gridInfo.n,
+        stainLevel: gridInfo.stainLevel,
+        a: a,
+        b: b,
+        detectionId: gridInfo.detectionId,
+        className: gridInfo.className
+    });
+}
+
+// 删除网格数据
+function removeGridData(a, b) {
+    const key = `${a},${b}`;
+    
+    // 清除二维数组
+    GridMatrix[a][b] = {
+        stainLevel: 0,
+        hasData: false
+    };
+    
+    // 从Map中删除
+    GridDataMap.delete(key);
+    
+    // 清除视觉效果
+    clearGridVisual(a, b);
+}
+
+// 获取网格数据
+function getGridData(a, b) {
+    const key = `${a},${b}`;
+    return GridDataMap.get(key);
+}
+
+// 检查网格是否有数据
+function hasGridData(a, b) {
+    return GridMatrix[a][b] && GridMatrix[a][b].hasData;
+}
+
+// 获取所有网格数据
+function getAllGridData() {
+    return Array.from(GridDataMap.values());
+}
+
+// 初始化网格线绘制 - 参考video_annotation.js中的initGrid函数
+function initGridLines(m, n) {
+    const canvas = document.getElementById('detection_canvas');
+    const imageDisplay = document.getElementById('image_display');
+    
+    if (!canvas || !imageDisplay) {
+        console.error('Canvas or image display not found');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    const rect = imageDisplay.getBoundingClientRect();
+    
+    // 设置canvas尺寸与图片显示尺寸一致
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    // 设置canvas样式位置覆盖在图片上
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.pointerEvents = 'auto'; // 允许点击事件
+    
+    // 清除之前的绘制
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 设置网格线样式
+    ctx.strokeStyle = 'rgb(255, 0, 0)';
+    ctx.lineWidth = 1;
+    
+    // 绘制垂直线
+    for (let i = 1; i < m; i++) {
+        const x = (canvas.width / m) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    
+    // 绘制水平线
+    for (let i = 1; i < n; i++) {
+        const y = (canvas.height / n) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+}
+
+// 清除网格视觉效果
+function clearGridVisual(a, b) {
+    const canvas = document.getElementById('detection_canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    const gridWidth = canvas.width / gridM;
+    const gridHeight = canvas.height / gridN;
+    
+    const startX = a * gridWidth;
+    const startY = b * gridHeight;
+    
+    // 清除该网格区域
+    ctx.clearRect(startX, startY, gridWidth, gridHeight);
+    
+    // 重新绘制网格线
+    ctx.strokeStyle = 'rgb(255, 0, 0)';
+    ctx.lineWidth = 1;
+    
+    // 重新绘制这个网格的边框
+    ctx.strokeRect(startX, startY, gridWidth, gridHeight);
+}
+
 // 初始化视频播放器
 function initVideoPlayer() {
     const videoElement = document.getElementById('video_player');
@@ -289,6 +459,32 @@ function togglePlayPause() {
     }
 }
 
+// 处理视频上传
+function handleVideoUpload(file) {
+    if (!file) return;
+    
+    try {
+        const videoURL = URL.createObjectURL(file);
+        
+        // 设置视频源
+        player.src({
+            type: 'video/mp4',
+            src: videoURL
+        });
+        
+        // 重新加载并播放
+        player.load();
+        player.play();
+        
+        console.log('Video uploaded successfully');
+        updateStatus('Video uploaded and loading...');
+        
+    } catch (error) {
+        console.error('Error uploading video:', error);
+        updateStatus('Error uploading video');
+    }
+}
+
 // 捕获当前帧
 function captureCurrentFrame() {
     if (!player) return null;
@@ -310,6 +506,153 @@ function captureCurrentFrame() {
         console.error('Error capturing current frame:', error);
         return null;
     }
+}
+
+// 更新图片占位符
+function updateImagePlaceholder(message) {
+    const placeholder = document.querySelector('.image_placeholder');
+    if (placeholder) {
+        placeholder.innerHTML = `<p>${message}</p>`;
+        placeholder.style.display = 'block';
+    }
+    
+    // 隐藏图片和canvas
+    const imageDisplay = document.getElementById('image_display');
+    const canvas = document.getElementById('detection_canvas');
+    
+    if (imageDisplay) {
+        imageDisplay.style.display = 'none';
+    }
+    
+    if (canvas) {
+        canvas.style.display = 'none';
+    }
+}
+
+// 修改：根据检测结果渲染网格 - 参考video_annotation.js中的choose_color函数
+function renderGridByResults(gridPositions) {
+    if (!gridPositions || gridPositions.length === 0) {
+        console.log('No grid positions to render');
+        return;
+    }
+
+    // 初始化网格数据
+    initGridData(gridM, gridN);
+    
+    // 获取canvas和图片元素
+    const canvas = document.getElementById('detection_canvas');
+    const imageDisplay = document.getElementById('image_display');
+    
+    if (!canvas || !imageDisplay) {
+        console.error('Canvas or image display not found');
+        return;
+    }
+
+    // 等待图片加载完成后再绘制网格
+    const renderGrid = () => {
+        const ctx = canvas.getContext('2d');
+        const rect = imageDisplay.getBoundingClientRect();
+        
+        // 设置canvas尺寸与图片显示尺寸一致
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        
+        // 设置canvas样式位置覆盖在图片上
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.pointerEvents = 'auto'; // 允许点击事件
+        
+        // 清除之前的绘制
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 先绘制网格线
+        initGridLines(gridM, gridN);
+        
+        // 遍历每个检测结果的网格位置
+        gridPositions.forEach((gridPos, index) => {
+            const { id, a, b } = gridPos;
+            
+            // 计算网格的实际像素位置 - 参考video_annotation.js中的方法
+            const x1 = a * (canvas.width / gridM) + 1;
+            const y1 = b * (canvas.height / gridN) + 1;
+            const w = canvas.width / gridM - 2;
+            const h = canvas.height / gridN - 2;
+            
+            // 获取对应的检测结果信息
+            const detection = detectionResults[id] || {};
+            const className = detection.class_name || 'unknown';
+            
+            // 使用默认的stainLevel = 1 (绿色)
+            const stainLevel = 1;
+            const color = stainLevelColors[stainLevel];
+            
+            // 绘制网格填充
+            ctx.fillStyle = color;
+            ctx.fillRect(x1, y1, w, h);
+            
+            // 在网格中心绘制文字标识
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const centerX = x1 + w / 2;
+            const centerY = y1 + h / 2;
+            
+            // 绘制检测ID和类别名称
+            ctx.fillText(`${id}`, centerX, centerY - 8);
+            ctx.fillText(`${className}`, centerX, centerY + 8);
+            
+            // 使用GridDataMap存储网格信息
+            const gridInfo = {
+                startX: x1,
+                startY: y1,
+                width: w,
+                height: h,
+                m: gridM,
+                n: gridN,
+                stainLevel: stainLevel,
+                detectionId: id,
+                className: className
+            };
+            
+            // 添加到GridDataMap
+            addGridData(a, b, gridInfo);
+            
+            console.log(`Rendered grid at (${a}, ${b}) for detection ${id} (${className})`);
+        });
+        
+        console.log(`Rendered ${gridPositions.length} grid positions`);
+        console.log('GridDataMap:', GridDataMap);
+    };
+    
+    // 如果图片已经加载完成，直接渲染
+    if (imageDisplay.complete && imageDisplay.naturalWidth > 0) {
+        renderGrid();
+    } else {
+        // 否则等待图片加载完成
+        imageDisplay.onload = renderGrid;
+    }
+}
+
+// 修改：清除网格渲染 - 使用GridDataMap
+function clearGridRender() {
+    const canvas = document.getElementById('detection_canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // 清除GridDataMap
+    GridDataMap.clear();
+    
+    // 重置GridMatrix
+    initGridData(gridM, gridN);
+    
+    console.log('Grid render cleared');
 }
 
 // 修改后的 performAIRecognition 函数
@@ -336,7 +679,7 @@ async function performAIRecognition() {
         // 创建FormData对象发送图片
         const formData = new FormData();
         formData.append('image', blob, 'frame.png');
-        formData.append('model_id', 'yolov11n.pt'); // 你可以根据实际模型名称调整
+        formData.append('model_id', 'yolov11n.pt');
         formData.append('image_size', '640');
         formData.append('conf_threshold', '0.5');
         
@@ -357,12 +700,31 @@ async function performAIRecognition() {
             // 显示识别结果图片
             displayRecognitionResult(result.annotated_image);
             
-            // 绘制红色网格 (假设使用 M x N 网格)
-            drawRedGrid(result.grid_m || 10, result.grid_n || 10);
+            // 更新网格参数
+            gridM = result.grid_m || 10;
+            gridN = result.grid_n || 10;
             
-            // 更新检测信息
+            // 存储检测结果和网格位置
+            detectionResults = result.detections || [];
+            const gridPositions = result.grid_positions || [];
+            
+            // 延迟渲染网格，确保图片已加载
+            setTimeout(() => {
+                renderGridByResults(gridPositions);
+            }, 100);
+            
+            // 更新检测信息，包含网格位置信息
             if (result.detections && result.detections.length > 0) {
-                updateDetectionInfo(`Found ${result.detections.length} objects detected`);
+                let infoText = `Found ${result.detections.length} objects:\n`;
+                result.detections.forEach((detection, index) => {
+                    const gridPos = gridPositions[index];
+                    infoText += `• ${detection.class_name} (confidence: ${(detection.confidence * 100).toFixed(1)}%) at grid (${gridPos.a}, ${gridPos.b})\n`;
+                });
+                updateDetectionInfo(infoText);
+                
+                // 在控制台输出网格位置信息
+                console.log('Grid positions:', gridPositions);
+                console.log('GridDataMap:', GridDataMap);
             } else {
                 updateDetectionInfo('No objects detected');
             }
@@ -382,135 +744,154 @@ async function performAIRecognition() {
     }
 }
 
-// 更新图片占位符文字
-function updateImagePlaceholder(text) {
-    const placeholder = document.querySelector('.image_placeholder p');
-    if (placeholder) {
-        placeholder.textContent = text;
+// 修改：根据网格位置执行机器人动作 - 使用GridDataMap
+function executeRobotAction() {
+    const allGridData = getAllGridData();
+    
+    if (!allGridData || allGridData.length === 0) {
+        updateStatus('No grid positions selected. Please run AI Recognition first.');
+        return;
+    }
+
+    // 获取第一个网格位置
+    const firstGrid = allGridData[0];
+    if (firstGrid) {
+        const { a, b, className } = firstGrid;
+        
+        console.log(`Executing robot action at grid position (${a}, ${b}) for ${className}`);
+        updateStatus(`Executing robot action at grid (${a}, ${b}) for ${className}`);
+        
+        // 发送所有网格位置到后端
+        sendGridPositionsToRobot(allGridData);
     }
 }
 
-// 显示识别结果
+// 修改：发送网格位置到机器人控制系统 - 使用GridDataMap
+async function sendGridPositionsToRobot(gridPositions) {
+    try {
+        // 获取当前图像
+        const imageDisplay = document.getElementById('image_display');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 设置画布尺寸与图像一致
+        canvas.width = imageDisplay.naturalWidth;
+        canvas.height = imageDisplay.naturalHeight;
+
+        // 将图像绘制到画布上
+        ctx.drawImage(imageDisplay, 0, 0);
+
+        // 获取当前图像的base64数据
+        const frameData = canvas.toDataURL('image/png');
+
+        // 准备裁剪图像数组
+        const croppedImages = [];
+
+        // 转换为新的注释格式
+        const annotations = gridPositions.map(grid => {
+            const { startX, startY, width, height, a, b, m, n, stainLevel } = grid;
+
+            // 裁剪每个区域
+            const cropCanvas = document.createElement('canvas');
+            const cropCtx = cropCanvas.getContext('2d');
+            cropCanvas.width = width;
+            cropCanvas.height = height;
+            cropCtx.drawImage(imageDisplay, startX, startY, width, height, 0, 0, width, height);
+
+            // 添加裁剪图像到数组
+            croppedImages.push(cropCanvas.toDataURL('image/png'));
+
+            // 返回新格式的注释
+            return {
+                startX: startX,
+                startY: startY,
+                a: a,
+                b: b,
+                width: width,
+                height: height,
+                m: m,
+                n: n,
+                stainLevel: stainLevel
+            };
+        });
+
+        // 使用与submitOneFrameAnnotation相同的格式发送数据
+        const response = await fetch('/video_action', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                cropped: croppedImages,
+                frame: frameData,
+                annotations: annotations
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Robot action result:', result);
+            updateStatus('Robot action sent successfully');
+        } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error sending robot action:', error);
+        updateStatus('Failed to send robot action: ' + error.message);
+    }
+}
+
+// 网格点击事件处理 - 支持点击删除
+function onGridClick(event) {
+    const canvas = document.getElementById('detection_canvas');
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    // 计算点击的网格坐标
+    const gridWidth = canvas.width / gridM;
+    const gridHeight = canvas.height / gridN;
+    
+    const a = Math.floor(mouseX / gridWidth);
+    const b = Math.floor(mouseY / gridHeight);
+    
+    // 检查边界
+    if (a >= 0 && a < gridM && b >= 0 && b < gridN) {
+        if (hasGridData(a, b)) {
+            // 如果网格有数据，删除它
+            removeGridData(a, b);
+            console.log(`Removed grid data at (${a}, ${b})`);
+            updateStatus(`Removed grid at (${a}, ${b})`);
+        } else {
+            console.log(`No data at grid (${a}, ${b})`);
+        }
+    }
+}
+
+// 修改：displayRecognitionResult函数
 function displayRecognitionResult(imageData) {
     const imageDisplay = document.getElementById('image_display');
     const placeholder = document.querySelector('.image_placeholder');
     const canvas = document.getElementById('detection_canvas');
     
     if (imageDisplay && placeholder) {
+        // 清除之前的网格渲染
+        clearGridRender();
+        
         // 隐藏占位符，显示图片
         placeholder.style.display = 'none';
         imageDisplay.style.display = 'block';
         imageDisplay.src = imageData;
         
-        // 如果有canvas，也显示
+        // 如果有canvas，也显示并绑定点击事件
         if (canvas) {
             canvas.style.display = 'block';
+            // 绑定点击事件以支持删除网格
+            canvas.addEventListener('click', onGridClick);
         }
-    }
-}
-
-// 在图片区域上方绘制红色网格
-function drawRedGrid(m, n) {
-    const canvas = document.getElementById('detection_canvas');
-    const imageDisplay = document.getElementById('image_display');
-    
-    if (!canvas || !imageDisplay) return;
-    
-    // 等待图片加载完成
-    imageDisplay.onload = function() {
-        const ctx = canvas.getContext('2d');
-        const rect = imageDisplay.getBoundingClientRect();
-        
-        // 设置canvas尺寸与图片一致
-        canvas.width = imageDisplay.naturalWidth || imageDisplay.width;
-        canvas.height = imageDisplay.naturalHeight || imageDisplay.height;
-        
-        // 设置canvas样式位置覆盖在图片上
-        canvas.style.position = 'absolute';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        canvas.style.pointerEvents = 'none'; // 允许点击穿透
-        
-        // 清除之前的绘制
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 设置红色网格样式
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        
-        // 绘制垂直线
-        for (let i = 1; i < m; i++) {
-            const x = (canvas.width / m) * i;
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
-        }
-        
-        // 绘制水平线
-        for (let i = 1; i < n; i++) {
-            const y = (canvas.height / n) * i;
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvas.width, y);
-            ctx.stroke();
-        }
-    };
-}
-
-// 处理视频文件上传
-function handleVideoUpload(file) {
-    if (!file || !file.type.startsWith('video/')) {
-        updateStatus('Please select a valid video file');
-        return;
-    }
-    
-    if (!player) {
-        console.error('Video player not initialized');
-        return;
-    }
-    
-    try {
-        const videoURL = URL.createObjectURL(file);
-        
-        // 显示加载状态
-        updateStatus('Loading video...');
-        
-        // 重置容器状态
-        const videoSection = document.querySelector('.video_section');
-        const imageSection = document.querySelector('.image_section');
-        
-        if (videoSection) videoSection.classList.remove('video-loaded');
-        if (imageSection) imageSection.classList.remove('video-loaded');
-        
-        // 重置检测结果
-        detectionResults = [];
-        const imageDisplay = document.getElementById('image_display');
-        const placeholder = document.querySelector('.image_placeholder');
-        const canvas = document.getElementById('detection_canvas');
-        
-        if (imageDisplay) imageDisplay.style.display = 'none';
-        if (canvas) canvas.style.display = 'none';
-        if (placeholder) {
-            placeholder.style.display = 'block';
-            updateImagePlaceholder('Detection results will appear here');
-        }
-        
-        // 设置视频源
-        player.src({ type: file.type, src: videoURL });
-        
-        // 重置AI识别状态
-        flagAIRecognition = false;
-        Current_frame_data = null;
-        updateAIRecognitionButton();
-        
-        console.log('Video uploaded successfully');
-        
-    } catch (error) {
-        console.error('Error uploading video:', error);
-        updateStatus('Error uploading video: ' + error.message);
     }
 }
 
@@ -525,13 +906,24 @@ function updateStatus(message) {
 function updateDetectionInfo(message) {
     const detectionInfoElement = document.getElementById('detection_info');
     if (detectionInfoElement) {
-        detectionInfoElement.textContent = message;
+        detectionInfoElement.innerHTML = message.replace(/\n/g, '<br>');
     }
+}
+
+function handleGridClick(event){
+
+}
+
+function handleContextMenuClick(event){
+
 }
 
 // DOM加载完成后的初始化
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
+    
+    // 初始化网格数据
+    initGridData(gridM, gridN);
     
     // 初始化视频播放器
     initVideoPlayer();
@@ -541,6 +933,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('video_file_input');
     const pauseButton = document.getElementById('pause_button');
     const aiRecognitionButton = document.getElementById('ai_recognition_button');
+    const executeButton = document.getElementById('execute_button');
+    const clearGridButton = document.getElementById('clear_grid_button');
+    const jumpToImageButton = document.getElementById('jump_to_robot_image');
+    const jumpToAnnotationButton = document.getElementById('jump_to_video_annotation');
     
     if (uploadButton && fileInput) {
         uploadButton.addEventListener('click', () => {
@@ -555,31 +951,60 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // 暂停/播放按钮
     if (pauseButton) {
         pauseButton.addEventListener('click', togglePlayPause);
     }
     
+    // AI识别按钮
     if (aiRecognitionButton) {
         aiRecognitionButton.addEventListener('click', performAIRecognition);
     }
     
-    // 页面跳转按钮事件
-    const jumpToImageButton = document.getElementById('jump_to_robot_image');
-    const jumpToAnnotationButton = document.getElementById('jump_to_video_annotation');
+    // 执行按钮
+    if (executeButton) {
+        executeButton.addEventListener('click', executeRobotAction);
+    }
     
+    // 清除网格按钮
+    if (clearGridButton) {
+        clearGridButton.addEventListener('click', clearGridRender);
+    }
+    
+    // 跳转按钮
     if (jumpToImageButton) {
-        jumpToImageButton.addEventListener('click', () => {
-            window.location.href = '/image_cleaning';
+        jumpToImageButton.addEventListener('click', function() {
+            window.location.href = '/robot_image';
         });
     }
     
     if (jumpToAnnotationButton) {
-        jumpToAnnotationButton.addEventListener('click', () => {
-            window.location.href = '/to_annotation';
+        jumpToAnnotationButton.addEventListener('click', function() {
+            window.location.href = '/video_annotation';
         });
     }
     
-    // 初始化状态
-    updateStatus('Ready - Please upload a video file');
-    updateAIRecognitionButton();
+    console.log('Video player initialized successfully');
+
+    // const imageContainer = document.getElementById('image_container');
+    // if(imageContainer){
+    //     imageContainer.addEventListener('click', handleGridClick);
+    // }
+    const contextMenu = document.getElementById('context_menu');
+    if(contextMenu){
+        contextMenu.addEventListener('click', handleContextMenuClick);
+    }
+        // 添加全局点击事件监听器以隐藏菜单
+    document.addEventListener('click', (event) => {
+        if (Is_context_menu_just_shown) {
+            Is_context_menu_just_shown = false;
+            return;
+        }
+
+        const contextMenu = document.getElementById('context_menu');
+        if (contextMenu.style.display !== 'none' && !contextMenu.contains(event.target)) {
+            contextMenu.style.display = 'none';
+        }
+    });
+
 });
