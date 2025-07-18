@@ -145,4 +145,3 @@ dependencies:
       - wait-for2==0.3.2
       - websockets==15.0.1
       - win32-setctime==1.2.0
-prefix: C:\Users\12707\.conda\envs\yolov12

@@ -20,7 +20,7 @@ import logging
 # uaclient -- for the opc ua client connection
 from uaserver.uaclient import UAClient
 
-app = Flask(__name__, template_folder='app/templates', static_folder='app/static', instance_path='C:/DDD/UIT_PROJECT/web_flask/data')
+app = Flask(__name__, template_folder='app/templates', static_folder='app/static', instance_path='data')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///annotations.sqlite3'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -288,6 +288,7 @@ def robot_video():
     return render_template('robot_video.html', m = m, n = n)
 
 @app.route('/new_actions', methods = ['GET', 'POST'])
+@app.route('/video_action', methods = ['GET', 'POST'])
 def new_actions():
     data = request.get_json()
     if not data:
@@ -363,6 +364,8 @@ def new_actions():
         traceback.print_exc()
         return jsonify(success = False)
 
+
+
 @app.route('/to_robot_video')
 def to_video_cleaning():
     return redirect(url_for('robot_video' , m = M, n = N))
@@ -389,24 +392,6 @@ def modify_grids():
     but need to do something to secure no risk
     '''
 
-def yolo_inference_from_image(image):
-    model = YOLO(str(app.config['YOLO_MODEL_PATH']))
-    results = model.predict(source=image, imgsz=app.config['INFERENCE_IMAGE_SIZE'], conf=app.config['CONF_THRESHOLD'])
-    for result in results:
-        # Process results list
-        boxes = result.boxes  # Boxes object for bounding box outputs
-        masks = result.masks  # Masks object for segmentation masks outputs
-        keypoints = result.keypoints  # Keypoints object for pose outputs
-        probs = result.probs  # Probs object for classification outputs
-        obb = result.obb  # Oriented boxes object for OBB outputs
-
-        print("boxes:", boxes)
-        print("masks:", masks)
-        print("keypoints:", keypoints)
-        print("probs:", probs)
-        print("obb:", obb)
-        result.show()  # display to screen
-    return results
 
 @app.route('/yolo_inference', methods=['POST'])
 def yolo_inference_api():
@@ -419,13 +404,15 @@ def yolo_inference_api():
             return jsonify({'success': False, 'error': 'No image selected'}), 400
         
         # 获取其他参数
-        # model_id = request.form.get('model_id', 'yolov11n.pt')
-        image_size = int(request.form.get('image_size', 640))
-        conf_threshold = float(request.form.get('conf_threshold', 0.5))
+        image_size = app.config['INFERENCE_IMAGE_SIZE']
+        conf_threshold = app.config['CONF_THRESHOLD']
         
         # 读取图片
         image_bytes = image_file.read()
         image = Image.open(io.BytesIO(image_bytes))
+        
+        # 获取原始图像尺寸
+        original_width, original_height = image.size
         
         # 使用配置的模型路径
         model_path = app.config['YOLO_MODEL_PATH']
@@ -443,13 +430,15 @@ def yolo_inference_api():
         
         # 处理推理结果
         detections = []
+        grid_positions = []  # 新增的网格位置数组
         
         if results and len(results) > 0:
             result = results[0]
             
             # 获取带注释的图片
-            annotated_image_array = result.plot()
-
+            annotated_image_array = result.plot(labels=False, conf=False)
+            
+            # 修复颜色通道问题：BGR -> RGB
             annotated_image_rgb = cv2.cvtColor(annotated_image_array, cv2.COLOR_BGR2RGB)
             
             # 转换为PIL图像
@@ -484,6 +473,21 @@ def yolo_inference_api():
                     width = x2 - x1
                     height = y2 - y1
                     
+                    # 计算网格坐标
+                    # 网格大小计算
+                    grid_width = original_width / M  # 每个网格的宽度
+                    grid_height = original_height / N  # 每个网格的高度
+                    
+                    # 计算网格位置 (左闭右开区间)
+                    grid_a = int(center_x // grid_width)  # 列坐标 (0 到 M-1)
+                    grid_b = int(center_y // grid_height)  # 行坐标 (0 到 N-1)
+                    
+                    # 确保网格坐标不超出边界
+                    grid_a = min(grid_a, M - 1)
+                    grid_b = min(grid_b, N - 1)
+                    grid_a = max(grid_a, 0)
+                    grid_b = max(grid_b, 0)
+                    
                     detection = {
                         'id': i,
                         'class_id': class_id,
@@ -502,9 +506,26 @@ def yolo_inference_api():
                         'position': {
                             'x': center_x,
                             'y': center_y
+                        },
+                        'grid_position': {
+                            'a': grid_a,
+                            'b': grid_b
                         }
                     }
                     detections.append(detection)
+                    
+                    # 添加到网格位置数组 (id, a, b)
+                    grid_positions.append({
+                        'id': i,
+                        'a': grid_a,
+                        'b': grid_b
+                    })
+                    
+                    # 打印调试信息
+                    print(f"Detection {i}: center=({center_x:.1f}, {center_y:.1f}), "
+                          f"grid=({grid_a}, {grid_b}), "
+                          f"grid_size=({grid_width:.1f}, {grid_height:.1f}), "
+                          f"image_size=({original_width}, {original_height})")
             
             return jsonify({
                 'success': True,
@@ -512,7 +533,12 @@ def yolo_inference_api():
                 'grid_m': M,
                 'grid_n': N,
                 'detections': detections,
-                'total_detections': len(detections)
+                'grid_positions': grid_positions,  # 新增的网格位置数组
+                'total_detections': len(detections),
+                'image_size': {
+                    'width': original_width,
+                    'height': original_height
+                }
             })
         else:
             return jsonify({
@@ -520,7 +546,12 @@ def yolo_inference_api():
                 'error': 'No detection results',
                 'annotated_image': None,
                 'detections': [],
-                'total_detections': 0
+                'grid_positions': [],  # 空的网格位置数组
+                'total_detections': 0,
+                'image_size': {
+                    'width': original_width,
+                    'height': original_height
+                }
             })
             
     except Exception as e:
@@ -532,6 +563,7 @@ def yolo_inference_api():
             'success': False, 
             'error': error_msg,
             'detections': [],
+            'grid_positions': [],  # 空的网格位置数组
             'total_detections': 0
         }), 500
 
