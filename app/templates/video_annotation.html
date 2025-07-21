@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Video Annotation</title>
-    <link rel = "stylesheet" href= "{{ url_for('static', filename='css/style.css')}}"> </link>
+    <link rel = "stylesheet" href= "{{ url_for('static', filename='css/CommonStyle.css')}}"> </link>
     <link rel = "stylesheet" href="{{ url_for('static', filename='css/video-js-8.23.3/video-js.min.css')}}"></link>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="{{ url_for('static', filename='js/video.min.js')}}"> </script>
@@ -38,6 +38,10 @@
                 <button id="play_pause">Play/Pause</button>
                 <div class = "annotate_group">
                     <button id="upload_annotation">Annotate</button>
+                </div>
+                <div>
+                    <button id="jump_to_robot_image">To image cleaning</button>
+                    <button id="jump_to_robot_video">To video cleaning</button>
                 </div>
                 <input type="file" id="video_file_input" accept="video/*" style="display: none;">
             </div>

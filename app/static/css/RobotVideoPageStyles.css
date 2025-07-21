@@ -1,0 +1,516 @@
+/* Robot Video 页面样式 */
+.main_container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f5f5f5;
+    font-family: Arial, sans-serif;
+}
+
+.content_wrapper {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 30px;
+}
+
+/* 视频区域 - 80%宽度居中 */
+.video_section {
+    width: 80%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 30px;
+    box-sizing: border-box;
+    gap: 25px;
+}
+
+/* 图片区域 - 80%宽度居中 */
+.image_section {
+    width: 80%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 30px;
+    box-sizing: border-box;
+    gap: 25px;
+}
+
+/* 视频容器 */
+.video_container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #000;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: height 0.3s ease;
+}
+
+/* 无视频时的固定高度 */
+.video_container.no-video {
+    height: 400px;
+    min-height: 400px;
+}
+
+/* 有视频时的动态高度 */
+.video_container.has-video {
+    height: auto;
+    min-height: 200px;
+}
+
+/* 视频播放器样式 */
+.video-js {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    border-radius: 12px;
+    background-color: #000;
+}
+
+.video-js .vjs-tech {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.video-js .vjs-poster {
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    border-radius: 12px;
+}
+
+/* 视频控制按钮区域 */
+.video_controls {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 10px 0;
+}
+
+/* 图片容器 */
+.image_container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: height 0.3s ease;
+}
+
+/* 图片容器默认高度 */
+.image_container {
+    height: 300px;
+    min-height: 300px;
+}
+
+/* 当有视频时，图片容器匹配视频容器高度 */
+.image_section.video-loaded .image_container {
+    height: auto;
+    min-height: 200px;
+}
+
+.image_placeholder {
+    color: #6c757d;
+    font-size: 16px;
+    text-align: center;
+    padding: 20px;
+    font-weight: 500;
+}
+
+#image_display, #detection_canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+/* 图片控制按钮 */
+.image_controls {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+/* 按钮基础样式 */
+.btn {
+    padding: 14px 28px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* 按钮点击效果 */
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* 各种按钮颜色 */
+.btn-upload {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: white;
+}
+
+.btn-upload:hover {
+    background: linear-gradient(135deg, #138496, #117a8b);
+}
+
+.btn-pause {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+}
+
+.btn-pause:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+}
+
+.btn-play {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    color: white;
+}
+
+.btn-play:hover {
+    background: linear-gradient(135deg, #1e7e34, #155724);
+}
+
+.btn-ai {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #212529;
+}
+
+.btn-ai:hover {
+    background: linear-gradient(135deg, #e0a800, #d39e00);
+}
+
+.btn-ai:disabled {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-ai-enabled {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    color: white;
+}
+
+.btn-ai-enabled:hover {
+    background: linear-gradient(135deg, #1e7e34, #155724);
+}
+
+.btn-model {
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+    color: white;
+}
+
+.btn-model:hover {
+    background: linear-gradient(135deg, #5a32a3, #4e2a8e);
+}
+
+.btn-execute {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    color: white;
+    font-size: 16px;
+    padding: 16px 32px;
+}
+
+.btn-execute:hover {
+    background: linear-gradient(135deg, #1e7e34, #155724);
+}
+
+/* 中央底部按钮 */
+.center_controls {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    padding: 25px;
+    background-color: white;
+    border-top: 1px solid #dee2e6;
+    margin-top: auto;
+    width: 100%;
+}
+
+.btn-jump {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    color: white;
+    padding: 12px 24px;
+}
+
+.btn-jump:hover {
+    background: linear-gradient(135deg, #5a6268, #495057);
+}
+
+/* 状态显示 */
+#status {
+    text-align: center;
+    padding: 12px;
+    background-color: #e9ecef;
+    margin-top: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+#detection_info {
+    text-align: center;
+    padding: 10px;
+    background-color: #d1ecf1;
+    margin-top: 8px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #0c5460;
+    display: none;
+    border: 1px solid #bee5eb;
+}
+
+#detection_info.show {
+    display: block;
+}
+
+/* 视频加载状态 */
+.video-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffffff;
+    font-size: 18px;
+    z-index: 10;
+    background: rgba(0,0,0,0.8);
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+/* 视频控制栏自定义 */
+.video-js .vjs-control-bar {
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border-radius: 0 0 12px 12px;
+}
+
+.video-js .vjs-big-play-button {
+    background: rgba(0,0,0,0.7);
+    border: 3px solid #fff;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    line-height: 80px;
+    font-size: 32px;
+}
+
+.video-js .vjs-big-play-button:hover {
+    background: rgba(0,0,0,0.9);
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .video_section,
+    .image_section {
+        width: 85%;
+    }
+}
+
+@media (max-width: 1024px) {
+    .video_section,
+    .image_section {
+        width: 90%;
+    }
+    
+    .video_controls {
+        gap: 10px;
+    }
+    
+    .btn {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .content_wrapper {
+        padding: 15px;
+        gap: 20px;
+    }
+    
+    .video_section,
+    .image_section {
+        width: 95%;
+        padding: 20px;
+        gap: 20px;
+    }
+    
+    .video_container.no-video {
+        height: 250px;
+        min-height: 250px;
+    }
+    
+    .image_container {
+        height: 200px;
+        min-height: 200px;
+    }
+    
+    .video_controls {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .btn {
+        width: 100%;
+        max-width: 250px;
+        padding: 14px 20px;
+    }
+    
+    .center_controls {
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .video_section,
+    .image_section {
+        width: 100%;
+        padding: 15px;
+        border-radius: 8px;
+    }
+    
+    .video_container {
+        border-radius: 8px;
+    }
+    
+    .image_container {
+        border-radius: 8px;
+    }
+    
+    .btn {
+        font-size: 13px;
+        padding: 12px 16px;
+    }
+    
+    .image_placeholder {
+        font-size: 14px;
+        padding: 15px;
+    }
+}
+
+/* 平滑的加载动画 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.video_section,
+.image_section {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* 拖拽上传样式 */
+.video_container.drag-over {
+    border: 3px dashed #007bff;
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.image_container.drag-over {
+    border: 3px dashed #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+/* 当视频加载后的样式调整 */
+.video_section.video-loaded,
+.image_section.video-loaded {
+    /* 视频加载后的样式调整 */
+}
+
+/* 添加上下文菜单样式 */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1000;
+    border-radius: 4px;
+}
+
+.dropdown-content a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    cursor: pointer;
+}
+
+.dropdown-content a:hover {
+    background-color: #f1f1f1;
+}
+
+/* 确保canvas可以接收点击事件 */
+#detection_canvas {
+    pointer-events: auto !important;
+}
