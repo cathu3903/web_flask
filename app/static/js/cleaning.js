@@ -547,6 +547,16 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
             }
         }
     });
+
+    // jump buttons
+    document.getElementById('jump_to_robot_video').addEventListener('click', () => {
+        window.location.href = '/to_robot_video';
+    });
+    document.getElementById('jump_to_video_annotaion').addEventListener('click', () => {
+        window.location.href = '/to_video_annotation';
+    });
+
+
     // if(progressControl)
     // {
     //     const seekBar = progressControl.seekBar;

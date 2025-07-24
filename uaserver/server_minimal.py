@@ -12,6 +12,10 @@ _myvar_x = None
 _myvar_y = None
 _grid_m = None
 _grid_n = None
+Lv = None
+MachID = None
+RobotAvailable = None
+ActionSignal = None
 
 def callback(ch, method, properties, body):
     print(f"[x] Received {body}")
@@ -34,11 +38,17 @@ async def main():
         _myvar_y = await myobj.add_variable(idx, "MyVariableY", 0)
         _grid_m = await myobj.add_variable(idx, "GridM", 10)
         _grid_n = await myobj.add_variable(idx, "GridN", 10)
+        Lv = await myobj.add_variable(idx, "StainLevel", 0)
+        MachID = await myobj.add_variable(idx, "MachineID", 0)
+        RobotAvailable = await myobj.add_variable(idx, "RobotAvailable", True)
+        ActionSignal = await myobj.add_variable(idx, "ActionSignal", False)
 
         await _myvar_x.set_writable()
         await _myvar_y.set_writable()
         await _grid_m.set_writable()
         await _grid_n.set_writable()
+        await RobotAvailable.set_writable()
+        await ActionSignal.set_writable()
 
         # # RabbitMQ connection
         # connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
@@ -84,7 +94,7 @@ async def main():
         _logger.info("Starting server!")
         async with _server:
             while True:
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
                 # value_1 = await myvar.get_value()
 
 
@@ -92,17 +102,22 @@ async def main():
 
                 # print(f"Current value of MyVariable 1 (bool): {value_1}")
                 # print(f"Current value of MyVariable 2 (bool): {await myvar_to_client.get_value()}")
-                value_x = await _myvar_x.get_value()
-                value_y = await _myvar_y.get_value()
-                value_m = await _grid_m.get_value()
-                value_n = await _grid_n.get_value()
-                print(f"Current value of MyVariableX (int): {value_x}")
-                print(f"Current value of MyVariableY (int): {value_y}")
-                print(f"Current value of MyVariableM (int): {value_m}")
-                print(f"Current value of MyVariableN (int): {value_n}")
-                print(f"当前线程: {threading.current_thread().name}")
-                # 打印当前协程信息
-                print(f"当前协程: {asyncio.current_task()}")
+                # value_x = await _myvar_x.get_value()
+                # value_y = await _myvar_y.get_value()
+                # value_m = await _grid_m.get_value()
+                # value_n = await _grid_n.get_value()
+                # value_lv = await Lv.get_value()
+                # value_mach_id = await MachID.get_value()
+                # value_available = await RobotAvailable.get_value()
+                # value_start = await ActionSignal.get_value()
+                # print(f"Current value of MyVariableX (int): {value_x}")
+                # print(f"Current value of MyVariableY (int): {value_y}")
+                # print(f"Current value of MyVariableM (int): {value_m}")
+                # print(f"Current value of MyVariableN (int): {value_n}")
+                # print(f"Current value of MyVariableLV (int): {value_lv}")
+                # print(f"Current value of MyVariableMachID (int): {value_mach_id}")
+                # print(f"Current value of RobotAvailable (bool): {value_available}")
+                # print(f"Current value of RobotStartSignal (bool): {value_start}")
 
 
                 # await myvar.write_value(value + 1)
@@ -128,7 +143,7 @@ async def main():
 
 
 
-async def update_variables(x, y, m, n):
+async def update_variables(x, y, m, n, lv=0, mach_id=0):
     """external function to update variables
 
     Args:
@@ -136,26 +151,29 @@ async def update_variables(x, y, m, n):
         y (int): y coordinate of grids
         m (int): number of columnns
         n (int): number of raws
+        lv (int): stain level--0, 1, 2, 3, 4,
+        mach_id (int): machine id
     """
-    global _server, _myvar_x, _myvar_y, _grid_m, _grid_n
+    global _server, _myvar_x, _myvar_y, _grid_m, _grid_n, Lv, MachID, ActionSignal
     if _server is None:
         raise RuntimeError("Server not initialized")
 
     print("Entered update_variables()")
     try:
-
-        # 执行写入操作
+        await ActionSignal.write_value(True)
         await _myvar_x.write_value(x)
         await _myvar_y.write_value(y)
         await _grid_m.write_value(m)
         await _grid_n.write_value(n)
+        await Lv.write_value(lv)
+        await MachID.write_value(mach_id)
 
-        # 强制同步读取验证
+        # valid the update
         current_x = await _myvar_x.get_value()
         current_y = await _myvar_y.get_value()
         print(f"[DEBUG] Post-write verification: x={current_x}, y={current_y}")
 
-        print(f"[SUCCESS] Updated: x={x}, y={y}, m={m}, n={n}")
+        print(f"[SUCCESS] Updated: x={x}, y={y}, m={m}, n={n}, lv={lv}, mach_id={mach_id}")
     except Exception as e:
         print(f"[ERROR] Update failed: {type(e).__name__}: {str(e)}")
         import traceback

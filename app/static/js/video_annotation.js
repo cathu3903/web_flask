@@ -470,37 +470,16 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         }
     });
 
-    // if(progressControl)
-    // {
-    //     const seekBar = progressControl.seekBar;
+    // jump buttons
+    document.getElementById('jump_to_robot_image').addEventListener('click', () => {
+        window.location.href = '/to_robot_image';
+    });
 
-    //     // display the time when mouse over the seek bar
-    //     seekBar.addEventListener('mousemove', (e) => {
-    //         const duration = player.duration();
-    //         if (!duration || isNaN(duration)) return;
+    document.getElementById('jump_to_robot_video').addEventListener('click', () => {
+        window.location.href = '/to_robot_video';
+    });
 
-    //         const rect = seekBar.el_.getBoundingClientRect();
-    //         const percent = (e.clientX - rect.left) / rect.width;
-    //         const time = duration * percent;
 
-    //         tooltip.textContent = formatTime(time);
-    //         tooltip.style.left = `${e.clientX + 10}px`;
-    //         tooltip.style.top = `${rect.top - 30}px`;
-    //         tooltip.style.opacity = 1;
-    //     });
-
-    //     // hide the time when mouse leave the seek bar
-    //     seekBar.addEventListener('mouseleave', () => {
-    //         tooltip.style.opacity = 0;
-    //     });
-    // }
-
-    // // format time
-    // function formatTime(seconds) {
-    //     const min = Math.floor(seconds / 60);
-    //     const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
-    //     return `${min}:${sec}`;
-    // }
 
 });
 
