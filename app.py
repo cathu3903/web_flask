@@ -344,6 +344,7 @@ def new_actions():
                 lv = annotation['stainLevel'],
                 img_cropped_path = cropped_filename,
                 frame_id = frame_record.id,     # link to the Frames object
+                # machine_id = annotation['machineId'],
             )
             db.session.add(annotation_record)
 
@@ -352,9 +353,10 @@ def new_actions():
             col_m = int(annotation['m'])
             raw_n = int(annotation['n'])
             lv= int(annotation['stainLevel'])
+            machine_id = annotation['machineId']
 
             # Enqueue the robot task, trigger the consumer
-            enqueue_robot_task(grid_x, grid_y, col_m, raw_n, lv)
+            enqueue_robot_task(grid_x, grid_y, col_m, raw_n, lv, machine_id)
 
         db.session.commit()
         return jsonify(success = True)

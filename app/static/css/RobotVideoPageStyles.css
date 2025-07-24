@@ -514,3 +514,87 @@
 #detection_canvas {
     pointer-events: auto !important;
 }
+
+/* machine id selector */
+.machine-selector {
+    position: relative;
+    display: inline-block;
+}
+
+.btn-machine {
+    padding: 14px 28px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+}
+
+.btn-machine:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    background: linear-gradient(135deg, #45a049, #3d8b40);
+}
+
+.btn-machine:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+.btn-machine::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.btn-machine:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+.machine-dropdown {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    right: 0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.machine-dropdown a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+.machine-dropdown a:hover {
+    background-color: #f1f1f1;
+}
+
+.machine-dropdown.show {
+    display: block;
+}
+
+/* AI controls specific styling */
+.ai-controls {
+    justify-content: center;
+}
+

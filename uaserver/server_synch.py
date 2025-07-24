@@ -25,7 +25,7 @@ def run():
         # setup server
         _server = Server()
 
-        _server.set_endpoint("opc.tcp://127.0.0.8:4840/freeopcua/server/")
+        _server.set_endpoint("opc.tcp://127.0.0.8:44840")
 
         uri = "http://my_ua_server"
         idx =  _server.register_namespace(uri)
@@ -49,6 +49,8 @@ def run():
         _grid_n.set_writable()
         RobotAvailable.set_writable()
         ActionSignal.set_writable()
+        Lv.set_writable()
+        MachID.set_writable()
 
         _logger.info("Starting server!")
         _server.start()

@@ -11,6 +11,7 @@ let detectionResults = [];
 let gridM = 10;
 let gridN = 10;
 let Is_context_menu_just_shown = false;
+let GlobalMachineId = 0;
 
 // 新增：颜色映射
 const stainLevelColors = {
@@ -65,8 +66,30 @@ function addGridData(a, b, gridInfo) {
         a: a,
         b: b,
         detectionId: gridInfo.detectionId,
-        className: gridInfo.className
+        className: gridInfo.className,
+        machineId: gridInfo.machineId,
     });
+}
+
+// 获取网格数据
+function getGridData(a, b) {
+    const key = `${a},${b}`;
+    return GridDataMap.get(key);
+}
+
+function addGridMachineId(a, b, machineId){
+    grid = getGridData(a, b);
+    if(grid.hasData)
+    {
+        GridDataMap.set(key, {
+            machineId: machineId
+        });
+    }
+    GlobalMachineId = machineId;
+}
+
+function updateGlobalMachineId(machineId){
+    GlobalMachineId = machineId;
 }
 
 // 删除网格数据
@@ -86,11 +109,7 @@ function removeGridData(a, b) {
     clearGridVisual(a, b);
 }
 
-// 获取网格数据
-function getGridData(a, b) {
-    const key = `${a},${b}`;
-    return GridDataMap.get(key);
-}
+
 
 // 检查网格是否有数据
 function hasGridData(a, b) {
@@ -616,7 +635,8 @@ function renderGridByResults(gridPositions) {
                 n: gridN,
                 stainLevel: stainLevel,
                 detectionId: id,
-                className: className
+                className: className,
+                machineId: GlobalMachineId,
             };
             
             // 添加到GridDataMap
@@ -789,7 +809,7 @@ async function sendGridPositionsToRobot(gridPositions) {
 
         // 转换为新的注释格式
         const annotations = gridPositions.map(grid => {
-            const { startX, startY, width, height, a, b, m, n, stainLevel } = grid;
+            const { startX, startY, width, height, a, b, m, n, stainLevel, machineId} = grid;
 
             // 裁剪每个区域
             const cropCanvas = document.createElement('canvas');
@@ -811,7 +831,8 @@ async function sendGridPositionsToRobot(gridPositions) {
                 height: height,
                 m: m,
                 n: n,
-                stainLevel: stainLevel
+                stainLevel: stainLevel,
+                machineId: machineId
             };
         });
 
@@ -918,6 +939,34 @@ function handleContextMenuClick(event){
 
 }
 
+// 添加机器选择函数
+function selectMachine(machineId) {
+    GlobalMachineId = machineId;
+    updateStatus(`Selected Machine ${GlobalMachineId}`);
+    
+    // 更新下拉按钮文本
+    const selectorButton = document.getElementById('machine_selector_button');
+    if (selectorButton) {
+        selectorButton.textContent = `Machine ${machineId} ▼`;
+    }
+    
+    // 隐藏下拉菜单
+    const dropdown = document.getElementById('machine_dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+
+    console.log(`Selected Machine ${machineId}`)
+}
+
+// 切换下拉菜单显示状态
+function toggleMachineDropdown() {
+    const dropdown = document.getElementById('machine_dropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
+}
+
 // DOM加载完成后的初始化
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
@@ -965,6 +1014,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (executeButton) {
         executeButton.addEventListener('click', executeRobotAction);
     }
+    
+    // 机器选择下拉菜单
+    const machineSelectorButton = document.getElementById('machine_selector_button');
+    const machineOptions = document.querySelectorAll('.machine-option');
+    
+    if (machineSelectorButton) {
+        machineSelectorButton.addEventListener('click', toggleMachineDropdown);
+    }
+    
+    machineOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.preventDefault();
+            const machineId = parseInt(this.getAttribute('data-machine-id'));
+            selectMachine(machineId);
+        });
+    });
+    
+    // 点击页面其他地方时关闭下拉菜单
+    window.addEventListener('click', function(event) {
+        const machineSelector = document.querySelector('.machine-selector');
+        if (machineSelector && !machineSelector.contains(event.target)) {
+            const dropdown = document.getElementById('machine_dropdown');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+        }
+    });
     
     // 清除网格按钮
     if (clearGridButton) {
