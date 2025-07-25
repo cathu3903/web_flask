@@ -2,13 +2,15 @@
 <html>
 <head>
     <title>Robot Video</title>
-    <!-- 使用CDN的Video.js CSS -->
-    <link href="https://vjs.zencdn.net/8.23.3/video-js.css" rel="stylesheet">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/RobotVideoPageStyles.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
+    <script src="{{ url_for('static', filename='js/video.min.js')}}"> </script>
+    <link rel = "stylesheet" href="{{ url_for('static', filename='css/video-js-8.23.3/video-js.min.css')}}">
+    <!-- 使用CDN的Video.js CSS -->
+    {#    <link href="https://vjs.zencdn.net/8.23.3/video-js.css" rel="stylesheet">#}
     <!-- 使用CDN的Video.js，避免require问题 -->
-    <script src="https://vjs.zencdn.net/8.23.3/video.min.js"></script>
+    {#    <script src="https://vjs.zencdn.net/8.23.3/video.min.js"></script>#}
     
     <!-- 验证Video.js加载 -->
     <script>
@@ -86,7 +88,10 @@
         <a id="delete_button" href="#" data-color = "_delete_" class="dropdown">X Delete</a>
         <a id="return_button" href="#" data-color = "_return_"  class="dropdown">Return</a>
     </div>
+    </div>
 
     <script src="{{ url_for('static', filename='js/robot_video.js') }}"></script>
+
+
 </body>
 </html>

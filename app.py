@@ -1,6 +1,5 @@
-from flask import Flask, render_template, request, redirect, send_from_directory, Response, jsonify, url_for, send_file
+from flask import Flask, render_template, request, redirect, send_from_directory, Response, jsonify, url_for
 from flask_sqlalchemy import SQLAlchemy
-# from uaserver import server_minimal
 from uaserver import server_synch
 import time
 import cv2
@@ -15,7 +14,6 @@ from datetime import datetime
 from ultralytics import YOLO
 from PIL import Image
 import io
-import logging
 
 # uaclient -- for the opc ua client connection
 from uaserver.uaclient import UAClient
@@ -50,6 +48,7 @@ class VideoCamera(object):
     current_encoded_frame = None    # For the stream transmission
 
     def __init__(self):
+        self.grabbed = None
         self.video = cv2.VideoCapture(0)    # read from the camera stream
         # self.video = cv2.VideoCapture('app/static/video/sample_2.mp4')  # read from the video file
 
@@ -163,7 +162,7 @@ def new_annotation():
 def video():
     m = M
     n = N
-    return render_template('video_cannotation.html', m = m, n = n)
+    return render_template('video_annotation.html', m = m, n = n)
 
 def gen(camera):
     while True:
@@ -381,18 +380,6 @@ def to_image_cleaning():
 def to_annotation():
     # return render_template("video_annotation.html",m = M, n = N)
     return  redirect(url_for('video_annotation' , m = M, n = N))
-
-
-@app.route('/modify_grids', methods = ['GET', 'POST'])
-def modify_grids():
-    data = request.get_json()
-    if not data:
-        return jsonify({ "success": False, "error": "No JSON data received"} ), 400
-    ''' not finished 
-    this function allows to change the M and N on the server,
-    the M and N also changes in javascript
-    but need to do something to secure no risk
-    '''
 
 
 @app.route('/yolo_inference', methods=['POST'])
@@ -620,20 +607,18 @@ def queue_consumer():
             # Get task from queue with timeout
             try:
                 task = robot_task_queue.get(timeout=2)
+                print(f"[DEBUG] Task fetched: {task}")
+                # Execute the task
+                execute_robot_task(
+                    task["grid_x"],
+                    task["grid_y"],
+                    task["col_m"],
+                    task["raw_n"],
+                    task["lv"],
+                    task["mach_id"]
+                )
             except Empty:
                 continue
-
-            print(f"[DEBUG] Task fetched: {task}")
-
-            # Execute the task
-            execute_robot_task(
-                task["grid_x"],
-                task["grid_y"],
-                task["col_m"],
-                task["raw_n"],
-                task["lv"],
-                task["mach_id"]
-            )
 
             robot_task_queue.task_done()
 
