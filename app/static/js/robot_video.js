@@ -634,6 +634,10 @@ function renderGridByResults(gridPositions) {
         // 遍历每个检测结果的网格位置
         gridPositions.forEach((gridPos, index) => {
             const { id, a, b } = gridPos;
+
+            // a,b可能重复，需要去重
+            if (gridPositions.findIndex(pos => pos.a === a && pos.b === b) !== index)
+            {return;}
             
             // 计算网格的实际像素位置 - 参考video_annotation.js中的方法
             const x1 = a * (canvas.width / gridM) + 1;

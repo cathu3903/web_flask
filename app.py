@@ -19,9 +19,10 @@ import io
 from uaserver.uaclient import UAClient
 instance_dir = os.path.abspath(os.path.dirname(__file__))
 instance_path = os.path.join(instance_dir, 'instance')
+os.makedirs(instance_path, exist_ok=True)
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static', instance_path=instance_path)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///annotations.sqlite3'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+ os.path.join(instance_path, 'annotations.sqlite3')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 ORIGINAL_SAVE_FOLDER = 'original_'
@@ -334,15 +335,15 @@ def new_actions():
                 cropped_path = os.path.join(app.config['DATA_FOLDER'], 'cropped', cropped_filename)
 
             annotation_record = Annotations(
-                x = annotation['startX'],
-                y = annotation['startY'],
-                w = annotation['width'],
-                h = annotation['height'],
-                m = annotation['m'],
-                n = annotation['n'],
-                lv = annotation['stainLevel'],
-                img_cropped_path = cropped_filename,
-                frame_id = frame_record.id,     # link to the Frames object
+                x = int(annotation['startX']),
+                y = int(annotation['startY']),
+                w = int(annotation['width']),
+                h = int(annotation['height']),
+                m = int(annotation['m']),
+                n = int(annotation['n']),
+                lv = int(annotation['stainLevel']),
+                img_cropped_path = str(cropped_filename),
+                frame_id = int(frame_record.id),     # link to the Frames object
                 # machine_id = annotation['machineId'],
             )
             db.session.add(annotation_record)
