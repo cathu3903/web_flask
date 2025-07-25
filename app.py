@@ -41,7 +41,7 @@ app.config['DATA_FOLDER'] = 'data'
 # make sure the data folder exists
 os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 
-robot_task_queue = Queue(maxsize=3)
+robot_task_queue = Queue(maxsize=100)
 ua_client = None
 
 class VideoCamera(object):
