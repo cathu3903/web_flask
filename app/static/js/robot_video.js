@@ -6,12 +6,15 @@ let playerInitialized = false;
 
 // 存储检测结果的变量 - 格式: [{id: 1, position: {x: 100, y: 200}}, ...]
 let detectionResults = [];
+let GlobalManualId = 0;
 
 // 新增：网格参数（从后端获取或默认值）
 let gridM = 10;
 let gridN = 10;
 let Is_context_menu_just_shown = false;
 let GlobalMachineId = 0;
+let currentGridA = null;
+let currentGridB = null;
 
 // 新增：颜色映射
 const stainLevelColors = {
@@ -77,6 +80,44 @@ function getGridData(a, b) {
     return GridDataMap.get(key);
 }
 
+function updateGridLevel(a, b, stainLevel){
+    const key = `${a},${b}`;
+    const grid = getGridData(a, b);
+    if(grid && GridMatrix[a][b].hasData) {
+        GridDataMap.set(key, {
+            ...grid,
+            stainLevel: stainLevel,
+            className: "manual",
+        });
+
+        GridMatrix[a][b].stainLevel = stainLevel;
+        // 更新视觉显示
+        const canvas = document.getElementById('detection_canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            // 清除原有颜色
+            ctx.clearRect(grid.startX, grid.startY, grid.width, grid.height);
+
+            // 绘制新颜色
+            ctx.fillStyle = stainLevelColors[stainLevel];
+            ctx.fillRect(grid.startX, grid.startY, grid.width, grid.height);
+
+            // 重新绘制文字标识
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const centerX = grid.startX + grid.width / 2;
+            const centerY = grid.startY + grid.height / 2;
+
+            ctx.fillText(`${grid.detectionId}`, centerX, centerY - 8);
+            ctx.fillText(`manual`, centerX, centerY + 8);
+            console.log(`updateGridLevel:${grid}`)
+        }
+    }
+}
+
 function addGridMachineId(a, b, machineId){
     grid = getGridData(a, b);
     if(grid.hasData)
@@ -95,18 +136,17 @@ function updateGlobalMachineId(machineId){
 // 删除网格数据
 function removeGridData(a, b) {
     const key = `${a},${b}`;
-    
+    // 清除视觉效果
+    clearGridVisual(a, b);
     // 清除二维数组
     GridMatrix[a][b] = {
         stainLevel: 0,
         hasData: false
     };
-    
+
     // 从Map中删除
     GridDataMap.delete(key);
-    
-    // 清除视觉效果
-    clearGridVisual(a, b);
+
 }
 
 
@@ -178,12 +218,13 @@ function clearGridVisual(a, b) {
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
+    const grid = getGridData(a, b);
     
-    const gridWidth = canvas.width / gridM;
-    const gridHeight = canvas.height / gridN;
+    const gridWidth = grid.width;
+    const gridHeight = grid.height;
     
-    const startX = a * gridWidth;
-    const startY = b * gridHeight;
+    const startX = grid.startX;
+    const startY = grid.startY;
     
     // 清除该网格区域
     ctx.clearRect(startX, startY, gridWidth, gridHeight);
@@ -907,12 +948,30 @@ function displayRecognitionResult(imageData) {
         imageDisplay.style.display = 'block';
         imageDisplay.src = imageData;
         
-        // 如果有canvas，也显示并绑定点击事件
-        if (canvas) {
-            canvas.style.display = 'block';
-            // 绑定点击事件以支持删除网格
-            canvas.addEventListener('click', onGridClick);
-        }
+        // 确保图片完全加载后再绑定事件
+        imageDisplay.onload = () => {
+            if (canvas) {
+                // 设置canvas尺寸与图片一致
+                canvas.width = imageDisplay.width;
+                canvas.height = imageDisplay.height;
+                canvas.style.display = 'block';
+                
+                // 移除可能存在的旧事件监听器
+                canvas.removeEventListener('click', handleGridClick);
+                // 绑定点击事件以支持网格操作
+                canvas.addEventListener('click', handleGridClick);
+                
+                // 重新绘制网格线
+                initGridLines(gridM, gridN);
+            }
+        };
+                // 如果有canvas，也显示并绑定点击事件
+        // if (canvas) {
+        //     canvas.style.display = 'block';
+        //     // 绑定点击事件以支持删除网格
+        //     canvas.removeEventListener('click', handleGridClick);
+        //     canvas.addEventListener('click', handleGridClick);
+        // }
     }
 }
 
@@ -931,26 +990,199 @@ function updateDetectionInfo(message) {
     }
 }
 
+// click event on the grid, only when the image is loaded
 function handleGridClick(event){
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const canvas = document.getElementById('detection_canvas');
+    const imageDisplay = document.getElementById('image_display');
+    
+    if (!canvas || !imageDisplay) return;
 
+    // 获取点击相对于canvas的位置
+    const rect = canvas.getBoundingClientRect();
+    const mouse_x = event.clientX - rect.left;
+    const mouse_y = event.clientY - rect.top;
+
+    // 检查点击是否在有效区域内
+    if (mouse_x >= 0 && mouse_x < rect.width && mouse_y >= 0 && mouse_y < rect.height) {
+        // 计算点击的网格坐标
+        const gridWidth = canvas.width / gridM;
+        const gridHeight = canvas.height / gridN;
+
+        const a = Math.floor(mouse_x / gridWidth);
+        const b = Math.floor(mouse_y / gridHeight);
+
+        // 检查边界
+        if (a >= 0 && a < gridM && b >= 0 && b < gridN) {
+            // 保存当前点击的网格坐标
+            currentGridA = a;
+            currentGridB = b;
+            // 显示菜单
+            const dropdown = document.getElementById('context_menu');
+            dropdown.style.display = 'block';
+            
+            // 使用 pageX/pageY 并添加 5px 偏移防止遮挡光标
+            dropdown.style.left = (event.pageX + 5) + 'px';
+            dropdown.style.top = (event.pageY + 5) + 'px';
+            
+            Is_context_menu_just_shown = true;
+            setTimeout(() => {Is_context_menu_just_shown = false;}, 100);
+        }
+        else {
+            console.log(`Clicked on grid (${a}, ${b}) without data`);
+            currentGridA = -1;
+            currentGridB = -1;
+        }
+    }
 }
 
+// Click event of menu --> add/remove/modify color
 function handleContextMenuClick(event){
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const canvas = document.getElementById('detection_canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    if(event.target.tagName === "A" && currentGridA >= 0 && currentGridB >= 0) {
+        let color;
+        let stain_level;
+        const a = currentGridA;
+        const b = currentGridB;
+        
+        switch(event.target.getAttribute("data-color")) {
+            case "green":
+                color = "rgba(0,255,0,0.5)";
+                stain_level = 1;
+                break;
+            case "yellow":
+                color = "rgba(255,255,0,0.5)";
+                stain_level = 2;
+                break;
+            case "blue":
+                color = "rgba(0,0, 255, 0.5)";
+                stain_level = 3;
+                break;
+            case "_delete_":
+                if(hasGridData(a, b))
+                {
+                    removeGridData(a, b);
+                    console.log(`Removed grid data at (${a}, ${b})`);
+                    updateStatus(`Removed grid at (${a}, ${b})`);
+                    
+                    // 隐藏菜单
+                    const contextMenu = document.getElementById('context_menu');
+                    if (contextMenu) {
+                        contextMenu.style.display = 'none';
+                    }
+                    
+                    currentGridA = -1;
+                    currentGridB = -1;
+                    return true;
+                }
+                break;
+            case "_return_":
+                // 隐藏菜单
+                const contextMenuReturn = document.getElementById('context_menu');
+                if (contextMenuReturn) {
+                    contextMenuReturn.style.display = 'none';
+                }
+                
+                currentGridA = -1;
+                currentGridB = -1;
+                return;
+        }
+        
+        // 对于颜色更改操作
+        if (color && stain_level) {
+            let grid = getGridData(a, b);
+            if (grid) {
+                // 更新网格级别
+                updateGridLevel(a, b, stain_level);
+                
+                console.log(`Updated grid (${a}, ${b}) to stain level ${stain_level}`);
+                updateStatus(`Updated grid (${a}, ${b}) to stain level ${stain_level}`);
+            }
+            else {
+                // create new grid and draw
+                // 如果点击的是一个空网格，添加一个新的网格条目
+                if (!hasGridData(a, b)) {
 
+                    // 计算网格的实际像素位置
+                    const x1 = a * (canvas.width / gridM) + 1;
+                    const y1 = b * (canvas.height / gridN) + 1;
+                    const w = canvas.width / gridM - 2;
+                    const h = canvas.height / gridN - 2;
+
+                    // 创建新的网格信息
+                    const gridInfo = {
+                        startX: x1,
+                        startY: y1,
+                        width: w,
+                        height: h,
+                        m: gridM,
+                        n: gridN,
+                        stainLevel: color,
+                        detectionId: GlobalManualId,
+                        className: 'manual',
+                        machineId: GlobalMachineId,
+                    };
+
+                    // 添加到GridDataMap
+                    addGridData(a, b, gridInfo);
+
+                    // 绘制新网格
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x1, y1, w, h);
+
+                    // 在网格中心绘制文字标识
+                    ctx.fillStyle = 'black';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    const centerX = x1 + w / 2;
+                    const centerY = y1 + h / 2;
+
+                    // 绘制检测类别名称 (手动)
+                    ctx.fillText(`${GlobalManualId}`, centerX, centerY - 8);
+                    ctx.fillText('manual', centerX, centerY + 8);
+
+                    console.log(`Added new grid at (${a}, ${b}) with detectionId ${GlobalManualId}`);
+                    GlobalManualId ++;
+                }
+            }
+        }
+        
+        // 隐藏菜单
+        const contextMenu = document.getElementById('context_menu');
+        if (contextMenu) {
+            contextMenu.style.display = 'none';
+        }
+        
+        currentGridA = -1;
+        currentGridB = -1;
+        this.style.display = "none";
+    }
 }
 
-// 添加机器选择函数
+// machine id selector
 function selectMachine(machineId) {
     GlobalMachineId = machineId;
     updateStatus(`Selected Machine ${GlobalMachineId}`);
     
-    // 更新下拉按钮文本
+    // update the button text
     const selectorButton = document.getElementById('machine_selector_button');
     if (selectorButton) {
         selectorButton.textContent = `Machine ${machineId} ▼`;
     }
     
-    // 隐藏下拉菜单
+    // hide the dropdown
     const dropdown = document.getElementById('machine_dropdown');
     if (dropdown) {
         dropdown.classList.remove('show');
@@ -959,15 +1191,16 @@ function selectMachine(machineId) {
     console.log(`Selected Machine ${machineId}`)
 }
 
-// 切换下拉菜单显示状态
+// change the visual state of the dropdown
 function toggleMachineDropdown() {
     const dropdown = document.getElementById('machine_dropdown');
     if (dropdown) {
         dropdown.classList.toggle('show');
+
     }
 }
 
-// DOM加载完成后的初始化
+// Bound events after DOM loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
     
@@ -983,10 +1216,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const pauseButton = document.getElementById('pause_button');
     const aiRecognitionButton = document.getElementById('ai_recognition_button');
     const executeButton = document.getElementById('execute_button');
-    const clearGridButton = document.getElementById('clear_grid_button');
     const jumpToImageButton = document.getElementById('jump_to_robot_image');
     const jumpToAnnotationButton = document.getElementById('jump_to_video_annotation');
-    
+    const contextMenu = document.getElementById('context_menu');
+
     if (uploadButton && fileInput) {
         uploadButton.addEventListener('click', () => {
             fileInput.click();
@@ -1042,11 +1275,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // 清除网格按钮
-    if (clearGridButton) {
-        clearGridButton.addEventListener('click', clearGridRender);
-    }
-    
     // 跳转按钮
     if (jumpToImageButton) {
         jumpToImageButton.addEventListener('click', function() {
@@ -1062,15 +1290,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Video player initialized successfully');
 
-    // const imageContainer = document.getElementById('image_container');
-    // if(imageContainer){
-    //     imageContainer.addEventListener('click', handleGridClick);
-    // }
-    const contextMenu = document.getElementById('context_menu');
+    // 绑定上下文菜单的点击事件
     if(contextMenu){
         contextMenu.addEventListener('click', handleContextMenuClick);
     }
-        // 添加全局点击事件监听器以隐藏菜单
+    
+    // 添加全局点击事件监听器以隐藏菜单
     document.addEventListener('click', (event) => {
         if (Is_context_menu_just_shown) {
             Is_context_menu_just_shown = false;
@@ -1080,7 +1305,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const contextMenu = document.getElementById('context_menu');
         if (contextMenu.style.display !== 'none' && !contextMenu.contains(event.target)) {
             contextMenu.style.display = 'none';
+            currentGridA = -1;
+            currentGridB = -1;
         }
     });
 
+    // 添加调试日志
+    console.log('Setting up canvas event binding');
 });

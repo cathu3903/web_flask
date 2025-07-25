@@ -61,7 +61,7 @@
             <div class="image_section">
                 <div class="image_container">
                     <!-- 添加网格覆盖层canvas -->
-                    <canvas id="detection_canvas" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2;"></canvas>
+                    <canvas id="detection_canvas" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: auto; z-index: 2;"></canvas>
                     <img id="image_display" src="" alt="Robot action image" style="display: none; position: relative; z-index: 1;">
                     <div class="image_placeholder">
                         <p>Detection results will appear here</p>
@@ -80,13 +80,11 @@
     </div>
 
     <div id="context_menu" class="dropdown-content">
-        <a href="#" data-color = "white" class="dropdown">0 White</a>
         <a href="#" data-color = "green" class="dropdown">1 Green</a>
         <a href="#" data-color = "yellow"  class="dropdown">2 Yellow</a>
         <a href="#" data-color = "blue"  class="dropdown">3 Blue</a>
-        <a href="#" data-color = "red" class="dropdown">4 Red</a>
-        <a id="clear_button" href="#" data-color = "_clear_" class="dropdown">X Clear</a>
-        <a id="cancel_button" href="#" data-color = "_cancel_"  class="dropdown">Cancel</a>
+        <a id="delete_button" href="#" data-color = "_delete_" class="dropdown">X Delete</a>
+        <a id="return_button" href="#" data-color = "_return_"  class="dropdown">Return</a>
     </div>
 
     <script src="{{ url_for('static', filename='js/robot_video.js') }}"></script>
