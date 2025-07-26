@@ -1,37 +1,39 @@
-// Robot Video 页面的 JavaScript 文件 - 简化版，直接发送到后端服务器
+// Robot Video Page JavaScript File - Simplified version, directly send to backend server
 let Current_frame_data = null;
 let flagAIRecognition = false;
 let player = null;
 let playerInitialized = false;
 
-// 存储检测结果的变量 - 格式: [{id: 1, position: {x: 100, y: 200}}, ...]
+// Store detection results - Format: [{id: 1, position: {x: 100, y: 200}}, ...]
 let detectionResults = [];
 let GlobalManualId = 0;
 
-// 新增：网格参数（从后端获取或默认值）
+// New: Grid parameters (from backend or default values)
 let gridM = 10;
 let gridN = 10;
 let Is_context_menu_just_shown = false;
 let GlobalMachineId = 0;
 let currentGridA = null;
 let currentGridB = null;
+let visualDetectionId = null;
+let GlobalModelId = 0;
 
-// 新增：颜色映射
+// New: Color mapping
 const stainLevelColors = {
     0: "rgba(255, 255, 255, 0.5)",  // white
-    1: "rgba(0, 255, 0, 0.5)",      // green - 默认值
+    1: "rgba(0, 255, 0, 0.5)",      // green - default value
     2: "rgba(255, 255, 0, 0.5)",    // yellow
     3: "rgba(0, 0, 255, 0.5)",      // blue
     4: "rgba(255, 0, 0, 0.5)"       // red
 };
 
-// 二维数组存储网格状态
+// 2D array to store grid status
 let GridMatrix = [];
 
-// Map存储详细信息，key为 "a,b" 格式
+// Map to store detailed information, key in "a,b" format
 let GridDataMap = new Map();
 
-// 初始化网格
+// Initialize grid
 function initGridData(m, n) {
     GridMatrix = [];
     GridDataMap.clear();
@@ -47,17 +49,17 @@ function initGridData(m, n) {
     }
 }
 
-// 添加网格数据
+// Add grid data
 function addGridData(a, b, gridInfo) {
     const key = `${a},${b}`;
     
-    // 更新二维数组
+    // Update 2D array
     GridMatrix[a][b] = {
         stainLevel: gridInfo.stainLevel,
         hasData: true
     };
     
-    // 更新Map
+    // Update Map
     GridDataMap.set(key, {
         startX: gridInfo.startX,
         startY: gridInfo.startY,
@@ -74,7 +76,7 @@ function addGridData(a, b, gridInfo) {
     });
 }
 
-// 获取网格数据
+// Get grid data
 function getGridData(a, b) {
     const key = `${a},${b}`;
     return GridDataMap.get(key);
@@ -91,18 +93,18 @@ function updateGridLevel(a, b, stainLevel){
         });
 
         GridMatrix[a][b].stainLevel = stainLevel;
-        // 更新视觉显示
+        // Update visual display
         const canvas = document.getElementById('detection_canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
-            // 清除原有颜色
+            // Clear previous color
             ctx.clearRect(grid.startX, grid.startY, grid.width, grid.height);
 
-            // 绘制新颜色
+            // Draw new color
             ctx.fillStyle = stainLevelColors[stainLevel];
             ctx.fillRect(grid.startX, grid.startY, grid.width, grid.height);
 
-            // 重新绘制文字标识
+            // Redraw text identifier
             ctx.fillStyle = 'black';
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
@@ -133,35 +135,33 @@ function updateGlobalMachineId(machineId){
     GlobalMachineId = machineId;
 }
 
-// 删除网格数据
+// Delete grid data
 function removeGridData(a, b) {
     const key = `${a},${b}`;
-    // 清除视觉效果
+    // Clear visual effect
     clearGridVisual(a, b);
-    // 清除二维数组
+    // Clear 2D array
     GridMatrix[a][b] = {
         stainLevel: 0,
         hasData: false
     };
 
-    // 从Map中删除
+    // Delete from Map
     GridDataMap.delete(key);
 
 }
 
-
-
-// 检查网格是否有数据
+// Check if grid has data
 function hasGridData(a, b) {
     return GridMatrix[a][b] && GridMatrix[a][b].hasData;
 }
 
-// 获取所有网格数据
+// Get all grid data
 function getAllGridData() {
     return Array.from(GridDataMap.values());
 }
 
-// 初始化网格线绘制 - 参考video_annotation.js中的initGrid函数
+// Initialize grid line drawing - Refer to initGrid function in video_annotation.js
 function initGridLines(m, n) {
     const canvas = document.getElementById('detection_canvas');
     const imageDisplay = document.getElementById('image_display');
@@ -174,26 +174,26 @@ function initGridLines(m, n) {
     const ctx = canvas.getContext('2d');
     const rect = imageDisplay.getBoundingClientRect();
     
-    // 设置canvas尺寸与图片显示尺寸一致
+    // Set canvas dimensions to match image display size
     canvas.width = rect.width;
     canvas.height = rect.height;
     
-    // 设置canvas样式位置覆盖在图片上
+    // Set canvas style position to overlay on image
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
     canvas.style.width = '100%';
     canvas.style.height = '100%';
-    canvas.style.pointerEvents = 'auto'; // 允许点击事件
+    canvas.style.pointerEvents = 'auto'; // Allow click events
     
-    // 清除之前的绘制
+    // Clear previous drawing
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 设置网格线样式
+    // Set grid line style
     ctx.strokeStyle = 'rgb(255, 0, 0)';
     ctx.lineWidth = 1;
     
-    // 绘制垂直线
+    // Draw vertical lines
     for (let i = 1; i < m; i++) {
         const x = (canvas.width / m) * i;
         ctx.beginPath();
@@ -202,7 +202,7 @@ function initGridLines(m, n) {
         ctx.stroke();
     }
     
-    // 绘制水平线
+    // Draw horizontal lines
     for (let i = 1; i < n; i++) {
         const y = (canvas.height / n) * i;
         ctx.beginPath();
@@ -212,7 +212,7 @@ function initGridLines(m, n) {
     }
 }
 
-// 清除网格视觉效果
+// Clear grid visual effect
 function clearGridVisual(a, b) {
     const canvas = document.getElementById('detection_canvas');
     if (!canvas) return;
@@ -226,28 +226,28 @@ function clearGridVisual(a, b) {
     const startX = grid.startX;
     const startY = grid.startY;
     
-    // 清除该网格区域
+    // Clear this grid area
     ctx.clearRect(startX, startY, gridWidth, gridHeight);
     
-    // 重新绘制网格线
+    // Redraw grid lines
     ctx.strokeStyle = 'rgb(255, 0, 0)';
     ctx.lineWidth = 1;
     
-    // 重新绘制这个网格的边框
+    // Redraw the border of this grid
     ctx.strokeRect(startX, startY, gridWidth, gridHeight);
 }
 
-// 初始化视频播放器
+// Initialize video player
 function initVideoPlayer() {
     const videoElement = document.getElementById('video_player');
     
-    // 检查是否已经初始化过
+    // Check if already initialized
     if (playerInitialized && player) {
         console.log('Video player already initialized');
         return player;
     }
     
-    // 销毁现有的播放器实例（如果存在）
+    // Destroy existing player instance (if exists)
     if (window.videojs && window.videojs.getPlayer) {
         try {
             const existingPlayer = window.videojs.getPlayer('video_player');
@@ -259,15 +259,15 @@ function initVideoPlayer() {
         }
     }
     
-    // 配置 Video.js 选项
+    // Configure Video.js options
     const options = {
         fluid: true,
         responsive: true,
         controls: true,
-        preload: 'none', // 避免加载空源
+        preload: 'none', // Avoid loading empty source
         playbackRates: [0.5, 1, 1.5, 2],
         techOrder: ['html5'],
-        sources: [], // 初始化为空源列表
+        sources: [], // Initialize with empty source list
         html5: {
             vhs: {
                 overrideNative: true
@@ -279,7 +279,7 @@ function initVideoPlayer() {
         player = videojs(videoElement, options);
         playerInitialized = true;
         
-        // 监听播放器事件
+        // Listen to player events
         player.on('pause', onPlayerPaused);
         player.on('play', onPlayerPlaying);
         player.on('loadedmetadata', onVideoLoaded);
@@ -287,7 +287,7 @@ function initVideoPlayer() {
         player.on('error', onVideoError);
         player.on('resize', onVideoResize);
         
-        // 设置初始状态
+        // Set initial state
         player.ready(() => {
             console.log('Video player is ready');
             updatePauseButtonState();
@@ -301,7 +301,7 @@ function initVideoPlayer() {
     }
 }
 
-// 更新暂停按钮状态
+// Update pause button state
 function updatePauseButtonState() {
     const pauseBtn = document.getElementById('pause_button');
     if (!pauseBtn || !player) return;
@@ -321,19 +321,19 @@ function updatePauseButtonState() {
     }
 }
 
-// 更新AI Recognition按钮状态
+// Update AI Recognition button state
 function updateAIRecognitionButton() {
     const aiButton = document.getElementById('ai_recognition_button');
     if (!aiButton) return;
     
     try {
         if (flagAIRecognition && Current_frame_data) {
-            // 暂停状态且有帧数据时启用按钮
+            // Enable button when paused and frame data exists
             aiButton.disabled = false;
             aiButton.classList.remove('btn-ai-disabled');
             aiButton.classList.add('btn-ai');
         } else {
-            // 其他状态时禁用按钮
+            // Disable button in other states
             aiButton.disabled = true;
             aiButton.classList.remove('btn-ai');
             aiButton.classList.add('btn-ai-disabled');
@@ -343,7 +343,7 @@ function updateAIRecognitionButton() {
     }
 }
 
-// 动态调整视频容器和图片容器大小
+// Dynamically adjust video container and image container size
 function adjustVideoContainer() {
     const videoSection = document.querySelector('.video_section');
     const imageSection = document.querySelector('.image_section');
@@ -357,54 +357,54 @@ function adjustVideoContainer() {
         const videoHeight = player.videoHeight();
         
         if (videoWidth > 0 && videoHeight > 0) {
-            // 标记为有视频状态
+            // Mark as video state
             videoContainer.classList.add('has-video');
             videoContainer.classList.remove('no-video');
             videoSection.classList.add('video-loaded');
             imageSection.classList.add('video-loaded');
             
-            // 计算视频的宽高比
+            // Calculate video aspect ratio
             const videoAspectRatio = videoWidth / videoHeight;
             
-            // 获取视频区域的实际宽度（减去padding）
-            const sectionPadding = 60; // 左右各30px
+            // Get actual width of video area (minus padding)
+            const sectionPadding = 60; // 30px on each side
             const availableWidth = videoSection.offsetWidth - sectionPadding;
             
-            // 计算最大可用高度（屏幕高度的60%）
+            // Calculate maximum available height (60% of screen height)
             const maxHeight = window.innerHeight * 0.6;
             
-            // 根据宽高比计算高度
+            // Calculate height based on aspect ratio
             let newHeight = availableWidth / videoAspectRatio;
             
-            // 限制最大高度
+            // Limit maximum height
             if (newHeight > maxHeight) {
                 newHeight = maxHeight;
             }
             
-            // 限制最小高度
+            // Limit minimum height
             const minHeight = 250;
             if (newHeight < minHeight) {
                 newHeight = minHeight;
             }
             
-            // 设置视频容器高度
+            // Set video container height
             videoContainer.style.height = `${newHeight}px`;
             
-            // 设置图片容器为相同高度
+            // Set image container to same height
             imageContainer.style.height = `${newHeight}px`;
             
-            // 调整播放器尺寸
+            // Adjust player dimensions
             player.dimensions(availableWidth, newHeight);
             
             console.log(`Containers adjusted: ${availableWidth}x${newHeight}, aspect ratio: ${videoAspectRatio}`);
         } else {
-            // 无视频时的默认状态
+            // Default state when no video
             videoContainer.classList.add('no-video');
             videoContainer.classList.remove('has-video');
             videoSection.classList.remove('video-loaded');
             imageSection.classList.remove('video-loaded');
             
-            // 重置图片容器高度
+            // Reset image container height
             imageContainer.style.height = '300px';
         }
     } catch (error) {
@@ -412,13 +412,13 @@ function adjustVideoContainer() {
     }
 }
 
-// 视频尺寸改变时的处理
+// Handle video size change
 function onVideoResize() {
     console.log('Video resize event triggered');
     adjustVideoContainer();
 }
 
-// 视频事件处理函数
+// Video event handler functions
 function onPlayerPaused() {
     console.log("Video paused");
     updatePauseButtonState();
@@ -447,7 +447,7 @@ function onVideoLoaded() {
     try {
         console.log("Video dimensions:", player.videoWidth(), "x", player.videoHeight());
         
-        // 延迟调整，确保视频尺寸信息已经可用
+        // Delay adjustment to ensure video dimension info is available
         setTimeout(() => {
             adjustVideoContainer();
             updatePauseButtonState();
@@ -464,7 +464,7 @@ function onVideoCanPlay() {
     console.log("Video can play");
     
     try {
-        // 再次调整容器大小
+        // Adjust container size again
         setTimeout(() => {
             adjustVideoContainer();
             updatePauseButtonState();
@@ -481,11 +481,11 @@ function onVideoError(error) {
     console.error('Video error:', error);
     
     try {
-        // 只在有实际视频源时才显示错误
+        // Only show error when there's an actual video source
         if (player && player.currentSrc() && player.currentSrc() !== '') {
             updateStatus('Video loading error');
         } else {
-            // 如果没有源，则不显示错误
+            // If no source, don't show error
             updateStatus('Video ready - Please upload a video file');
         }
     } catch (e) {
@@ -493,7 +493,7 @@ function onVideoError(error) {
     }
 }
 
-// 切换播放/暂停状态
+// Toggle play/pause state
 function togglePlayPause() {
     if (!player) {
         console.error('Video player not initialized');
@@ -519,20 +519,20 @@ function togglePlayPause() {
     }
 }
 
-// 处理视频上传
+// Handle video upload
 function handleVideoUpload(file) {
     if (!file) return;
     
     try {
         const videoURL = URL.createObjectURL(file);
         
-        // 设置视频源
+        // Set video source
         player.src({
             type: 'video/mp4',
             src: videoURL
         });
         
-        // 重新加载并播放
+        // Reload and play
         player.load();
         player.play();
         
@@ -545,7 +545,7 @@ function handleVideoUpload(file) {
     }
 }
 
-// 捕获当前帧
+// Capture current frame
 function captureCurrentFrame() {
     if (!player) return null;
     
@@ -568,7 +568,7 @@ function captureCurrentFrame() {
     }
 }
 
-// 更新图片占位符
+// Update image placeholder
 function updateImagePlaceholder(message) {
     const placeholder = document.querySelector('.image_placeholder');
     if (placeholder) {
@@ -576,7 +576,7 @@ function updateImagePlaceholder(message) {
         placeholder.style.display = 'block';
     }
     
-    // 隐藏图片和canvas
+    // Hide image and canvas
     const imageDisplay = document.getElementById('image_display');
     const canvas = document.getElementById('detection_canvas');
     
@@ -589,17 +589,17 @@ function updateImagePlaceholder(message) {
     }
 }
 
-// 修改：根据检测结果渲染网格 - 参考video_annotation.js中的choose_color函数
+// Modified: Render grid based on detection results - Refer to choose_color function in video_annotation.js
 function renderGridByResults(gridPositions) {
     if (!gridPositions || gridPositions.length === 0) {
         console.log('No grid positions to render');
         return;
     }
 
-    // 初始化网格数据
+    // Initialize grid data
     initGridData(gridM, gridN);
     
-    // 获取canvas和图片元素
+    // Get canvas and image elements
     const canvas = document.getElementById('detection_canvas');
     const imageDisplay = document.getElementById('image_display');
     
@@ -608,56 +608,58 @@ function renderGridByResults(gridPositions) {
         return;
     }
 
-    // 等待图片加载完成后再绘制网格
+    // Wait for image to load before drawing grid
     const renderGrid = () => {
         const ctx = canvas.getContext('2d');
         const rect = imageDisplay.getBoundingClientRect();
         
-        // 设置canvas尺寸与图片显示尺寸一致
+        // Set canvas dimensions to match image display size
         canvas.width = rect.width;
         canvas.height = rect.height;
         
-        // 设置canvas样式位置覆盖在图片上
+        // Set canvas style position to overlay on image
         canvas.style.position = 'absolute';
         canvas.style.top = '0';
         canvas.style.left = '0';
         canvas.style.width = '100%';
         canvas.style.height = '100%';
-        canvas.style.pointerEvents = 'auto'; // 允许点击事件
+        canvas.style.pointerEvents = 'auto'; // Allow click events
         
-        // 清除之前的绘制
+        // Clear previous drawing
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 先绘制网格线
+        // First draw grid lines
         initGridLines(gridM, gridN);
-        
-        // 遍历每个检测结果的网格位置
+        // Initialize visual id
+        visualDetectionId = 0;
+
+        // Iterate through each detection result's grid position
         gridPositions.forEach((gridPos, index) => {
             const { id, a, b } = gridPos;
 
-            // a,b可能重复，需要去重
+            // a,b may be duplicated, need to deduplicate
             if (gridPositions.findIndex(pos => pos.a === a && pos.b === b) !== index)
             {return;}
             
-            // 计算网格的实际像素位置 - 参考video_annotation.js中的方法
+            // Calculate actual pixel position of grid - Refer to method in video_annotation.js
             const x1 = a * (canvas.width / gridM) + 1;
             const y1 = b * (canvas.height / gridN) + 1;
             const w = canvas.width / gridM - 2;
             const h = canvas.height / gridN - 2;
             
-            // 获取对应的检测结果信息
+            // Get corresponding detection result info
             const detection = detectionResults[id] || {};
             const className = detection.class_name || 'unknown';
             
-            // 使用默认的stainLevel = 1 (绿色)
+            // Default stainLevel = 1 (green)
             const stainLevel = 1;
             const color = stainLevelColors[stainLevel];
             
-            // 绘制网格填充
+            // Draw grid fill
             ctx.fillStyle = color;
             ctx.fillRect(x1, y1, w, h);
             
-            // 在网格中心绘制文字标识
+            // Draw text identifier at grid center
             ctx.fillStyle = 'black';
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
@@ -666,11 +668,13 @@ function renderGridByResults(gridPositions) {
             const centerX = x1 + w / 2;
             const centerY = y1 + h / 2;
             
-            // 绘制检测ID和类别名称
-            ctx.fillText(`${id}`, centerX, centerY - 8);
+            // Draw detection ID and class name
+            // Use visualId instead of detection id
+            ctx.fillText(`${visualDetectionId}`, centerX, centerY - 8);
             ctx.fillText(`${className}`, centerX, centerY + 8);
+            visualDetectionId ++;
             
-            // 使用GridDataMap存储网格信息
+            // Store grid info using GridDataMap
             const gridInfo = {
                 startX: x1,
                 startY: y1,
@@ -684,7 +688,7 @@ function renderGridByResults(gridPositions) {
                 machineId: GlobalMachineId,
             };
             
-            // 添加到GridDataMap
+            // Add to GridDataMap
             addGridData(a, b, gridInfo);
             
             console.log(`Rendered grid at (${a}, ${b}) for detection ${id} (${className})`);
@@ -694,16 +698,16 @@ function renderGridByResults(gridPositions) {
         console.log('GridDataMap:', GridDataMap);
     };
     
-    // 如果图片已经加载完成，直接渲染
+    // If image already loaded, render directly
     if (imageDisplay.complete && imageDisplay.naturalWidth > 0) {
         renderGrid();
     } else {
-        // 否则等待图片加载完成
+        // Otherwise wait for image to load
         imageDisplay.onload = renderGrid;
     }
 }
 
-// 修改：清除网格渲染 - 使用GridDataMap
+// Modified: Clear grid rendering - Use GridDataMap
 function clearGridRender() {
     const canvas = document.getElementById('detection_canvas');
     if (canvas) {
@@ -711,16 +715,16 @@ function clearGridRender() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
     
-    // 清除GridDataMap
+    // Clear GridDataMap
     GridDataMap.clear();
     
-    // 重置GridMatrix
+    // Reset GridMatrix
     initGridData(gridM, gridN);
     
     console.log('Grid render cleared');
 }
 
-// 修改后的 performAIRecognition 函数
+// Modified performAIRecognition function
 async function performAIRecognition() {
     if (!flagAIRecognition) {
         updateStatus('Please pause the video first for AI recognition');
@@ -732,23 +736,26 @@ async function performAIRecognition() {
         return;
     }
     
-    // 更新图片区域显示文字为等待状态
+    // Update image area display text to waiting state
     updateImagePlaceholder('Waiting for server result...');
     updateStatus('AI Recognition in progress...');
     
     try {
-        // 将base64图片数据转换为blob格式
+        // Convert base64 image data to blob format
         const response = await fetch(Current_frame_data);
         const blob = await response.blob();
         
-        // 创建FormData对象发送图片
+        // Create FormData object to send image
         const formData = new FormData();
         formData.append('image', blob, 'frame.png');
-        formData.append('model_id', 'yolov11n.pt');
+        if (GlobalModelId == 0)
+            formData.append('model_id', 'upper_part_model');
+        else if (GlobalModelId == 1)
+            formData.append('model_id', 'lower_part_model');
         formData.append('image_size', '640');
-        formData.append('conf_threshold', '0.5');
+        formData.append('conf_threshold', '0.3');
         
-        // 发送到Flask后端
+        // Send to Flask backend
         const apiResponse = await fetch('/yolo_inference', {
             method: 'POST',
             body: formData
@@ -760,25 +767,25 @@ async function performAIRecognition() {
         
         const result = await apiResponse.json();
         
-        // 检查是否有识别结果
+        // Check if there are recognition results
         if (result.success && result.annotated_image) {
-            // 显示识别结果图片
+            // Display recognition result image
             displayRecognitionResult(result.annotated_image);
             
-            // 更新网格参数
+            // Update grid parameters
             gridM = result.grid_m || 10;
             gridN = result.grid_n || 10;
             
-            // 存储检测结果和网格位置
+            // Store detection results and grid positions
             detectionResults = result.detections || [];
             const gridPositions = result.grid_positions || [];
             
-            // 延迟渲染网格，确保图片已加载
+            // Delay rendering grid to ensure image is loaded
             setTimeout(() => {
                 renderGridByResults(gridPositions);
             }, 100);
             
-            // 更新检测信息，包含网格位置信息
+            // Update detection info, including grid position info
             if (result.detections && result.detections.length > 0) {
                 let infoText = `Found ${result.detections.length} objects:\n`;
                 result.detections.forEach((detection, index) => {
@@ -787,7 +794,7 @@ async function performAIRecognition() {
                 });
                 updateDetectionInfo(infoText);
                 
-                // 在控制台输出网格位置信息
+                // Output grid position info in console
                 console.log('Grid positions:', gridPositions);
                 console.log('GridDataMap:', GridDataMap);
             } else {
@@ -796,7 +803,7 @@ async function performAIRecognition() {
             
             updateStatus('AI Recognition completed successfully');
         } else {
-            // 如果没有识别结果，显示原图
+            // If no recognition results, display original image
             displayRecognitionResult(Current_frame_data);
             updateDetectionInfo('No objects detected');
             updateStatus('AI Recognition completed - No objects found');
@@ -809,7 +816,7 @@ async function performAIRecognition() {
     }
 }
 
-// 修改：根据网格位置执行机器人动作 - 使用GridDataMap
+// Modified: Execute robot action based on grid position - Use GridDataMap
 function executeRobotAction() {
     const allGridData = getAllGridData();
     
@@ -818,7 +825,7 @@ function executeRobotAction() {
         return;
     }
 
-    // 获取第一个网格位置
+    // Get first grid position
     const firstGrid = allGridData[0];
     if (firstGrid) {
         const { a, b, className } = firstGrid;
@@ -826,47 +833,47 @@ function executeRobotAction() {
         console.log(`Executing robot action at grid position (${a}, ${b}) for ${className}`);
         updateStatus(`Executing robot action at grid (${a}, ${b}) for ${className}`);
         
-        // 发送所有网格位置到后端
+        // Send all grid positions to backend
         sendGridPositionsToRobot(allGridData);
     }
 }
 
-// 修改：发送网格位置到机器人控制系统 - 使用GridDataMap
+// Modified: Send grid positions to robot control system - Use GridDataMap
 async function sendGridPositionsToRobot(gridPositions) {
     try {
-        // 获取当前图像
+        // Get current image
         const imageDisplay = document.getElementById('image_display');
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // 设置画布尺寸与图像一致
+        // Set canvas dimensions to match image
         canvas.width = imageDisplay.naturalWidth;
         canvas.height = imageDisplay.naturalHeight;
 
-        // 将图像绘制到画布上
+        // Draw image on canvas
         ctx.drawImage(imageDisplay, 0, 0);
 
-        // 获取当前图像的base64数据
+        // Get base64 data of current image
         const frameData = canvas.toDataURL('image/png');
 
-        // 准备裁剪图像数组
+        // Prepare cropped image array
         const croppedImages = [];
 
-        // 转换为新的注释格式
+        // Convert to new annotation format
         const annotations = gridPositions.map(grid => {
             const { startX, startY, width, height, a, b, m, n, stainLevel, machineId} = grid;
 
-            // 裁剪每个区域
+            // Crop each area
             const cropCanvas = document.createElement('canvas');
             const cropCtx = cropCanvas.getContext('2d');
             cropCanvas.width = width;
             cropCanvas.height = height;
             cropCtx.drawImage(imageDisplay, startX, startY, width, height, 0, 0, width, height);
 
-            // 添加裁剪图像到数组
+            // Add cropped image to array
             croppedImages.push(cropCanvas.toDataURL('image/png'));
 
-            // 返回新格式的注释
+            // Return new format annotation
             return {
                 startX: startX,
                 startY: startY,
@@ -881,7 +888,7 @@ async function sendGridPositionsToRobot(gridPositions) {
             };
         });
 
-        // 使用与submitOneFrameAnnotation相同的格式发送数据
+        // Use same format as submitOneFrameAnnotation to send data
         const response = await fetch('/video_action', {
             method: 'POST',
             headers: {
@@ -898,6 +905,7 @@ async function sendGridPositionsToRobot(gridPositions) {
             const result = await response.json();
             console.log('Robot action result:', result);
             updateStatus('Robot action sent successfully');
+            GlobalManualId = 0;
         } else {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -907,7 +915,7 @@ async function sendGridPositionsToRobot(gridPositions) {
     }
 }
 
-// 网格点击事件处理 - 支持点击删除
+// Grid click event handler - Support click to delete
 function onGridClick(event) {
     const canvas = document.getElementById('detection_canvas');
     if (!canvas) return;
@@ -917,17 +925,17 @@ function onGridClick(event) {
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
-    // 计算点击的网格坐标
+    // Calculate clicked grid coordinates
     const gridWidth = canvas.width / gridM;
     const gridHeight = canvas.height / gridN;
     
     const a = Math.floor(mouseX / gridWidth);
     const b = Math.floor(mouseY / gridHeight);
     
-    // 检查边界
+    // Check boundaries
     if (a >= 0 && a < gridM && b >= 0 && b < gridN) {
         if (hasGridData(a, b)) {
-            // 如果网格有数据，删除它
+            // If grid has data, delete it
             removeGridData(a, b);
             console.log(`Removed grid data at (${a}, ${b})`);
             updateStatus(`Removed grid at (${a}, ${b})`);
@@ -937,49 +945,50 @@ function onGridClick(event) {
     }
 }
 
-// 修改：displayRecognitionResult函数
+// Modified: displayRecognitionResult function
 function displayRecognitionResult(imageData) {
     const imageDisplay = document.getElementById('image_display');
     const placeholder = document.querySelector('.image_placeholder');
     const canvas = document.getElementById('detection_canvas');
-    
+
+
     if (imageDisplay && placeholder) {
-        // 清除之前的网格渲染
+        // Clear previous grid rendering
         clearGridRender();
         
-        // 隐藏占位符，显示图片
+        // Hide placeholder, show image
         placeholder.style.display = 'none';
         imageDisplay.style.display = 'block';
         imageDisplay.src = imageData;
         
-        // 确保图片完全加载后再绑定事件
+        // Ensure image fully loads before binding events
         imageDisplay.onload = () => {
             if (canvas) {
-                // 设置canvas尺寸与图片一致
+                // Set canvas dimensions to match image
                 canvas.width = imageDisplay.width;
                 canvas.height = imageDisplay.height;
                 canvas.style.display = 'block';
                 
-                // 移除可能存在的旧事件监听器
+                // Remove possible old event listeners
                 canvas.removeEventListener('click', handleGridClick);
-                // 绑定点击事件以支持网格操作
+                // Bind click event to support grid operations
                 canvas.addEventListener('click', handleGridClick);
                 
-                // 重新绘制网格线
+                // Redraw grid lines
                 initGridLines(gridM, gridN);
             }
         };
-                // 如果有canvas，也显示并绑定点击事件
+                // If there's a canvas, also show and bind click event
         // if (canvas) {
         //     canvas.style.display = 'block';
-        //     // 绑定点击事件以支持删除网格
+        //     // Bind click event to support deleting grid
         //     canvas.removeEventListener('click', handleGridClick);
         //     canvas.addEventListener('click', handleGridClick);
         // }
     }
 }
 
-// 状态更新函数
+// Status update function
 function updateStatus(message) {
     const statusElement = document.getElementById('status');
     if (statusElement) {
@@ -1004,30 +1013,30 @@ function handleGridClick(event){
     
     if (!canvas || !imageDisplay) return;
 
-    // 获取点击相对于canvas的位置
+    // Get click position relative to canvas
     const rect = canvas.getBoundingClientRect();
     const mouse_x = event.clientX - rect.left;
     const mouse_y = event.clientY - rect.top;
 
-    // 检查点击是否在有效区域内
+    // Check if click is within valid area
     if (mouse_x >= 0 && mouse_x < rect.width && mouse_y >= 0 && mouse_y < rect.height) {
-        // 计算点击的网格坐标
+        // Calculate clicked grid coordinates
         const gridWidth = canvas.width / gridM;
         const gridHeight = canvas.height / gridN;
 
         const a = Math.floor(mouse_x / gridWidth);
         const b = Math.floor(mouse_y / gridHeight);
 
-        // 检查边界
+        // Check boundaries
         if (a >= 0 && a < gridM && b >= 0 && b < gridN) {
-            // 保存当前点击的网格坐标
+            // Save current clicked grid coordinates
             currentGridA = a;
             currentGridB = b;
-            // 显示菜单
+            // Show menu
             const dropdown = document.getElementById('context_menu');
             dropdown.style.display = 'block';
             
-            // 使用 pageX/pageY 并添加 5px 偏移防止遮挡光标
+            // Use pageX/pageY and add 5px offset to prevent cursor occlusion
             dropdown.style.left = (event.pageX + 5) + 'px';
             dropdown.style.top = (event.pageY + 5) + 'px';
             
@@ -1078,7 +1087,7 @@ function handleContextMenuClick(event){
                     console.log(`Removed grid data at (${a}, ${b})`);
                     updateStatus(`Removed grid at (${a}, ${b})`);
                     
-                    // 隐藏菜单
+                    // Hide menu
                     const contextMenu = document.getElementById('context_menu');
                     if (contextMenu) {
                         contextMenu.style.display = 'none';
@@ -1090,7 +1099,7 @@ function handleContextMenuClick(event){
                 }
                 break;
             case "_return_":
-                // 隐藏菜单
+                // Hide menu
                 const contextMenuReturn = document.getElementById('context_menu');
                 if (contextMenuReturn) {
                     contextMenuReturn.style.display = 'none';
@@ -1101,11 +1110,11 @@ function handleContextMenuClick(event){
                 return;
         }
         
-        // 对于颜色更改操作
+        // For color change operations
         if (color && stain_level) {
             let grid = getGridData(a, b);
             if (grid) {
-                // 更新网格级别
+                // Update grid level
                 updateGridLevel(a, b, stain_level);
                 
                 console.log(`Updated grid (${a}, ${b}) to stain level ${stain_level}`);
@@ -1113,16 +1122,16 @@ function handleContextMenuClick(event){
             }
             else {
                 // create new grid and draw
-                // 如果点击的是一个空网格，添加一个新的网格条目
+                // If clicking on an empty grid, add a new grid entry
                 if (!hasGridData(a, b)) {
 
-                    // 计算网格的实际像素位置
+                    // Calculate actual pixel position of grid
                     const x1 = a * (canvas.width / gridM) + 1;
                     const y1 = b * (canvas.height / gridN) + 1;
                     const w = canvas.width / gridM - 2;
                     const h = canvas.height / gridN - 2;
 
-                    // 创建新的网格信息
+                    // Create new grid info
                     const gridInfo = {
                         startX: x1,
                         startY: y1,
@@ -1130,21 +1139,21 @@ function handleContextMenuClick(event){
                         height: h,
                         m: gridM,
                         n: gridN,
-                        stainLevel: color,
+                        stainLevel: stain_level,
                         detectionId: GlobalManualId,
                         className: 'manual',
                         machineId: GlobalMachineId,
                     };
 
-                    // 添加到GridDataMap
+                    // Add to GridDataMap
                     addGridData(a, b, gridInfo);
 
-                    // 绘制新网格
+                    // Draw new grid
                     const ctx = canvas.getContext('2d');
                     ctx.fillStyle = color;
                     ctx.fillRect(x1, y1, w, h);
 
-                    // 在网格中心绘制文字标识
+                    // Draw text identifier at grid center
                     ctx.fillStyle = 'black';
                     ctx.font = 'bold 12px Arial';
                     ctx.textAlign = 'center';
@@ -1153,7 +1162,7 @@ function handleContextMenuClick(event){
                     const centerX = x1 + w / 2;
                     const centerY = y1 + h / 2;
 
-                    // 绘制检测类别名称 (手动)
+                    // Draw detection class name (manual)
                     ctx.fillText(`${GlobalManualId}`, centerX, centerY - 8);
                     ctx.fillText('manual', centerX, centerY + 8);
 
@@ -1163,7 +1172,7 @@ function handleContextMenuClick(event){
             }
         }
         
-        // 隐藏菜单
+        // Hide menu
         const contextMenu = document.getElementById('context_menu');
         if (contextMenu) {
             contextMenu.style.display = 'none';
@@ -1208,13 +1217,13 @@ function toggleMachineDropdown() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
     
-    // 初始化网格数据
+    // Initialize grid data
     initGridData(gridM, gridN);
     
-    // 初始化视频播放器
+    // Initialize video player
     initVideoPlayer();
     
-    // 绑定事件监听器
+    // Bind event listeners
     const uploadButton = document.getElementById('upload_video_button');
     const fileInput = document.getElementById('video_file_input');
     const pauseButton = document.getElementById('pause_button');
@@ -1237,22 +1246,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 暂停/播放按钮
+    // Pause/Play button
     if (pauseButton) {
         pauseButton.addEventListener('click', togglePlayPause);
     }
     
-    // AI识别按钮
+    // AI recognition button
     if (aiRecognitionButton) {
         aiRecognitionButton.addEventListener('click', performAIRecognition);
     }
     
-    // 执行按钮
+    // Execute button
     if (executeButton) {
         executeButton.addEventListener('click', executeRobotAction);
     }
     
-    // 机器选择下拉菜单
+    // Machine selection dropdown menu
     const machineSelectorButton = document.getElementById('machine_selector_button');
     const machineOptions = document.querySelectorAll('.machine-option');
     
@@ -1268,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // 点击页面其他地方时关闭下拉菜单
+    // Click elsewhere on page to close dropdown menu
     window.addEventListener('click', function(event) {
         const machineSelector = document.querySelector('.machine-selector');
         if (machineSelector && !machineSelector.contains(event.target)) {
@@ -1279,7 +1288,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // 跳转按钮
+    // Jump buttons
     if (jumpToImageButton) {
         jumpToImageButton.addEventListener('click', function() {
             window.location.href = '/robot_image';
@@ -1294,12 +1303,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Video player initialized successfully');
 
-    // 绑定上下文菜单的点击事件
+    // Bind context menu click event
     if(contextMenu){
         contextMenu.addEventListener('click', handleContextMenuClick);
     }
     
-    // 添加全局点击事件监听器以隐藏菜单
+    // Add global click event listener to hide menu
     document.addEventListener('click', (event) => {
         if (Is_context_menu_just_shown) {
             Is_context_menu_just_shown = false;
@@ -1314,6 +1323,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 添加调试日志
+    // Add debug log
     console.log('Setting up canvas event binding');
 });

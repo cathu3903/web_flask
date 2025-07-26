@@ -14,6 +14,7 @@ from datetime import datetime
 from ultralytics import YOLO
 from PIL import Image
 import io
+import torch
 
 # uaclient -- for the opc ua client connection
 from uaserver.uaclient import UAClient
@@ -29,7 +30,7 @@ ORIGINAL_SAVE_FOLDER = 'original_'
 CROPPED_SAVE_FOLDER = 'cropped_'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-app.config['YOLO_MODEL_PATH'] = 'yolo_trained_model/best_v11_25_7_17.pt'
+app.config['YOLO_MODEL_PATH'] = 'yolo_trained_model'
 app.config['INFERENCE_IMAGE_SIZE'] = int(640)
 app.config['CONF_THRESHOLD'] = float(0.5)
 
@@ -43,6 +44,9 @@ os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 
 robot_task_queue = Queue(maxsize=100)
 ua_client = None
+global_model = None
+loaded_model_path = None
+
 
 class VideoCamera(object):
     current_raw_frame = None      # recording the current frame, for the image processing
@@ -392,49 +396,61 @@ def yolo_inference_api():
         image_file = request.files['image']
         if image_file.filename == '':
             return jsonify({'success': False, 'error': 'No image selected'}), 400
-        
-        # 获取其他参数
+
         image_size = app.config['INFERENCE_IMAGE_SIZE']
-        conf_threshold = app.config['CONF_THRESHOLD']
-        
-        # 读取图片
+        # conf_threshold = app.config['CONF_THRESHOLD']
+        conf_threshold = float(request.form['conf_threshold'])
+
         image_bytes = image_file.read()
         image = Image.open(io.BytesIO(image_bytes))
-        
-        # 获取原始图像尺寸
         original_width, original_height = image.size
-        
-        # 使用配置的模型路径
-        model_path = app.config['YOLO_MODEL_PATH']
-        
-        # 初始化YOLO模型
-        model = YOLO(model_path)
 
-        # 进行推理
-        results = model.predict(
+        # Use the model path from the form, currently only support one model,
+        # need to add model switching function
+        model_id = request.form.get('model_id')
+        if model_id == 'upper_part_model':
+            model_path = os.path.join(app.config['YOLO_MODEL_PATH'], 'best_v11_upper.pt')
+        elif model_id == 'lower_part_model':
+            model_path = os.path.join(app.config['YOLO_MODEL_PATH'], 'best_v11_lower.pt')
+        else:
+            return jsonify({'success': False, 'error': 'Invalid model id'}), 400
+        
+        # Initialize the global model, if it hasn't been initialized yet
+        global global_model,  loaded_model_path
+        if not loaded_model_path:
+            global_model = YOLO(model_path)
+            loaded_model_path = model_path
+
+        # switch model if the model path is changed
+        if model_path != loaded_model_path:
+            global_model = YOLO(model_path)
+            loaded_model_path = model_path
+
+        results = global_model.predict(
             source=image,
             imgsz=image_size,
             conf=conf_threshold,
-            verbose=False
+            verbose=False,
+            # Use GPU if available, otherwise use CPU
+            device='cuda:0' if torch.cuda.is_available() else 'cpu',
         )
         
-        # 处理推理结果
+        # process the inference results
         detections = []
-        grid_positions = []  # 新增的网格位置数组
+        grid_positions = []
         
         if results and len(results) > 0:
             result = results[0]
             
-            # 获取带注释的图片
+            # the image with annotations
             annotated_image_array = result.plot(labels=False, conf=False)
             
-            # 修复颜色通道问题：BGR -> RGB
+            # color channel transform：BGR -> RGB
             annotated_image_rgb = cv2.cvtColor(annotated_image_array, cv2.COLOR_BGR2RGB)
             
-            # 转换为PIL图像
+            # transform into PIL image
             result_image = Image.fromarray(annotated_image_rgb)
-            
-            # 转换为base64
+
             buffered = io.BytesIO()
             result_image.save(buffered, format="PNG")
             img_str = base64.b64encode(buffered.getvalue()).decode()
@@ -444,35 +460,29 @@ def yolo_inference_api():
             if result.boxes is not None:
                 boxes = result.boxes
                 for i in range(len(boxes)):
-                    # 获取边界框坐标 (x1, y1, x2, y2)
                     box_coords = boxes.xyxy[i].cpu().numpy().tolist()
-                    
-                    # 获取置信度
+
                     confidence = float(boxes.conf[i].cpu().numpy())
-                    
-                    # 获取类别ID
+
                     class_id = int(boxes.cls[i].cpu().numpy())
+
+                    class_name = global_model.names[class_id] if class_id < len(global_model.names) else f"class_{class_id}"
                     
-                    # 获取类别名称
-                    class_name = model.names[class_id] if class_id < len(model.names) else f"class_{class_id}"
-                    
-                    # 计算中心点和宽高
+                    # center points and h, w
                     x1, y1, x2, y2 = box_coords
                     center_x = (x1 + x2) / 2
                     center_y = (y1 + y2) / 2
                     width = x2 - x1
                     height = y2 - y1
+                    grid_width = original_width / M
+                    grid_height = original_height / N
                     
-                    # 计算网格坐标
-                    # 网格大小计算
-                    grid_width = original_width / M  # 每个网格的宽度
-                    grid_height = original_height / N  # 每个网格的高度
+
+                    # calculate grid positions (left-closed, right-open)
+                    grid_a = int(center_x // grid_width)  # column coordinate (0 to M-1)
+                    grid_b = int(center_y // grid_height)  # row coordinate (0 to N-1)
                     
-                    # 计算网格位置 (左闭右开区间)
-                    grid_a = int(center_x // grid_width)  # 列坐标 (0 到 M-1)
-                    grid_b = int(center_y // grid_height)  # 行坐标 (0 到 N-1)
-                    
-                    # 确保网格坐标不超出边界
+                    # make sure the grid position is within the grid
                     grid_a = min(grid_a, M - 1)
                     grid_b = min(grid_b, N - 1)
                     grid_a = max(grid_a, 0)
@@ -503,15 +513,13 @@ def yolo_inference_api():
                         }
                     }
                     detections.append(detection)
-                    
-                    # 添加到网格位置数组 (id, a, b)
+
+                    # add to grid_positions, indicates the detection id and its grid position
                     grid_positions.append({
                         'id': i,
                         'a': grid_a,
                         'b': grid_b
                     })
-                    
-                    # 打印调试信息
                     print(f"Detection {i}: center=({center_x:.1f}, {center_y:.1f}), "
                           f"grid=({grid_a}, {grid_b}), "
                           f"grid_size=({grid_width:.1f}, {grid_height:.1f}), "
@@ -523,7 +531,7 @@ def yolo_inference_api():
                 'grid_m': M,
                 'grid_n': N,
                 'detections': detections,
-                'grid_positions': grid_positions,  # 新增的网格位置数组
+                'grid_positions': grid_positions,
                 'total_detections': len(detections),
                 'image_size': {
                     'width': original_width,
@@ -536,7 +544,7 @@ def yolo_inference_api():
                 'error': 'No detection results',
                 'annotated_image': None,
                 'detections': [],
-                'grid_positions': [],  # 空的网格位置数组
+                'grid_positions': [],
                 'total_detections': 0,
                 'image_size': {
                     'width': original_width,
@@ -553,7 +561,7 @@ def yolo_inference_api():
             'success': False, 
             'error': error_msg,
             'detections': [],
-            'grid_positions': [],  # 空的网格位置数组
+            'grid_positions': [],
             'total_detections': 0
         }), 500
 
@@ -671,7 +679,7 @@ if __name__ == '__main__':
     try:
         with app.app_context():
             db.create_all()
-
+        global_model = None
         print("Starting Flask server...")
         app.run(host="localhost", port=12345, debug=True, use_reloader=False)
     except Exception as e:
