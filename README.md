@@ -5,13 +5,15 @@ This is a demonstration of how to control a robot arm using a web interface.
 To ensure the successful and smooth running on another windows PC, the setup of python environment is  indispensable. Now there're two way to build the same conda virtual environment :
 1. The conda dependency file on YAML format
 2. The complete copy of conda environment.
-The second one is quite simple but time-exhausting and requires good network environment and enough disk space. The first one is more practical compared with the second one. 
-Step 1: Install 3 software:
-1. Anaconda, to create and manage the python environment
-2. CUDA (not necessary), to run the inference of YOLO model by GPU. The ultralytics package will switch to CPU when CUDA is not available.
-3. Git, to copy from the server and manage the update of the project code
-These 3 softwares are recommanded to registered as  system environment variable. The following steps are based on that. 
-Step 2: clone the project code on Github. 
+The second one is quite simple but time-exhausting and requires good network environment and enough disk space. The first one is more practical compared with the second one.
+
+### Step 1: Install 3 software:
+1. [Anaconda](https://www.anaconda.com/docs/getting-started/getting-started) / [Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install), to create and manage the python environment
+2. [CUDA](https://developer.nvidia.com/cuda-downloads) (optional but recommanded), to run the inference of YOLO model by GPU. The ultralytics package will switch to CPU when CUDA is not available.
+3. [Git](https://git-scm.com/downloads/win), to copy from the server and manage the update of the project code
+These 3 softwares are recommanded to registered as system environment variable. The following steps are based on that. 
+
+### Step 2: Clone the project code on Github. 
 Open git bash or cmd / powershell and change to the directory you want to place the project
 ```cmd
 > git clone https://github.com/cathu3903/web_flask.git web_flask
@@ -20,7 +22,7 @@ Open git bash or cmd / powershell and change to the directory you want to place 
 
 Then create a new conda environment by the dependency attached in the project
 ```cmd
-web_flask> conda create -n stella_polaris -f web_flask_conda_env.yaml python=3.11.11
+web_flask> conda create -n env_name -f web_flask_conda_env.yaml python=3.11.11
 web_flask> activate env_name
 ```
 
@@ -31,16 +33,15 @@ web_flask> activate env_name
 (env_name)web_flask> conda env update -n env_name -f web_flask_conda.yaml
 ```
 
-Step 3: run the code
+### Step 3 Start Flask and OPC-UA server
+run the code
 If everything goes well, you can start the porgram:
 ```cmd      
 (env_name)web_flask> python app.py
-The details will be updated on the README.md on the project. 
+
 ```
 
 ## Usage
-
-### Image-operated interface
 
 ### Video-operated interface
 There are two windows :
