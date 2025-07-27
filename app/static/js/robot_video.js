@@ -13,10 +13,10 @@ let gridM = 10;
 let gridN = 10;
 let Is_context_menu_just_shown = false;
 let GlobalMachineId = 0;
+let GlobalModelId = 0; // 0 for upper part, 1 for lower part
 let currentGridA = null;
 let currentGridB = null;
 let visualDetectionId = null;
-let GlobalModelId = 0;
 
 // New: Color mapping
 const stainLevelColors = {
@@ -1204,12 +1204,39 @@ function selectMachine(machineId) {
     console.log(`Selected Machine ${machineId}`)
 }
 
-// change the visual state of the dropdown
+// Model selector
+function selectModel(modelId) {
+    GlobalModelId = modelId;
+    updateStatus(`Selected Model: ${modelId === 0 ? 'Upper Part' : 'Lower Part'}`);
+    
+    // update the button text
+    const selectorButton = document.getElementById('model_selector_button');
+    if (selectorButton) {
+        selectorButton.textContent = `${modelId === 0 ? 'Upper Part' : 'Lower Part'} ▼`;
+    }
+    
+    // hide the dropdown
+    const dropdown = document.getElementById('model_dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+
+    console.log(`Selected Model ${modelId === 0 ? 'Upper Part' : 'Lower Part'}`)
+}
+
+// change the visual state of the machine dropdown
 function toggleMachineDropdown() {
     const dropdown = document.getElementById('machine_dropdown');
     if (dropdown) {
         dropdown.classList.toggle('show');
+    }
+}
 
+// change the visual state of the model dropdown
+function toggleModelDropdown() {
+    const dropdown = document.getElementById('model_dropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('show');
     }
 }
 
@@ -1277,11 +1304,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Click elsewhere on page to close dropdown menu
+    // Model selection dropdown menu
+    const modelSelectorButton = document.getElementById('model_selector_button');
+    const modelOptions = document.querySelectorAll('.model-option');
+    
+    if (modelSelectorButton) {
+        modelSelectorButton.addEventListener('click', toggleModelDropdown);
+    }
+    
+    modelOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modelId = parseInt(this.getAttribute('data-model-id'));
+            selectModel(modelId);
+        });
+    });
+    
+    // Click elsewhere on page to close dropdown menus
     window.addEventListener('click', function(event) {
         const machineSelector = document.querySelector('.machine-selector');
+        const modelSelector = document.querySelector('.model-selector');
+        
         if (machineSelector && !machineSelector.contains(event.target)) {
             const dropdown = document.getElementById('machine_dropdown');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+        }
+        
+        if (modelSelector && !modelSelector.contains(event.target)) {
+            const dropdown = document.getElementById('model_dropdown');
             if (dropdown) {
                 dropdown.classList.remove('show');
             }
