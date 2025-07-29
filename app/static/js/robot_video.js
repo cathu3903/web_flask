@@ -1185,7 +1185,7 @@ function handleContextMenuClick(event){
 }
 
 // machine id selector
-function selectMachine(machineId) {
+async function selectMachine(machineId) {
     GlobalMachineId = machineId;
     updateStatus(`Selected Machine ${GlobalMachineId}`);
     
@@ -1200,6 +1200,29 @@ function selectMachine(machineId) {
     if (dropdown) {
         dropdown.classList.remove('show');
     }
+
+    // Drive the conveyor to the corresponding machine
+    try {
+        const response = await fetch('/select_machine', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                machineId: machineId,
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            console.error(`Error selecting machine: ${error}`);
+            return;
+        }
+    }
+    catch (error) {
+        console.error(`Error selecting machine: ${error}`);
+    }
+
 
     console.log(`Selected Machine ${machineId}`)
 }

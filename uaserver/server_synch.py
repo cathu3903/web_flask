@@ -42,6 +42,7 @@ def run():
         MachID =  myobj.add_variable(idx, "MachineID", 0)
         RobotAvailable =  myobj.add_variable(idx, "RobotAvailable", True)
         ActionSignal =  myobj.add_variable(idx, "ActionSignal", False)
+        MachineSignal = myobj.add_variable(idx, "MachineSignal", False)
 
         _myvar_x.set_writable()
         _myvar_y.set_writable()
@@ -51,6 +52,7 @@ def run():
         ActionSignal.set_writable()
         Lv.set_writable()
         MachID.set_writable()
+        MachineSignal.set_writable()
 
         _logger.info("Starting server!")
         _server.start()

@@ -4,6 +4,8 @@ import threading
 from queue import Queue, Empty
 import time
 
+from sqlalchemy.testing.exclusions import succeeds_if
+
 _logger = logging.getLogger(__name__)
 
 class RobotAvailabilityHandler:
@@ -72,6 +74,7 @@ class UAClient:
                 self.machine_id = self.myobj.get_child("2:MachineID")
                 self.robot_available_node = self.myobj.get_child("2:RobotAvailable")
                 self.start_signal = self.myobj.get_child("2:ActionSignal")
+                self.machine_signal = self.myobj.get_child("2:MachineSignal")
 
                 # Subscribe to RobotAvailable variable with proper handler
                 self.subscription = self.client.create_subscription(500, self.robot_handler)
@@ -203,6 +206,30 @@ class UAClient:
             result["error"] = str(e)
 
         return result
+
+    def machine_selection(self, machine_id):
+        result = {"success": True, "failed_updates": []}
+        try:
+            self.ensure_connected()
+
+            # Wait for robot to be available
+            if not self.wait_for_robot_available(timeout=30):  # 30 seconds timeout
+                result["success"] = False
+                result["error"] = "Timeout waiting for robot to become available"
+                return result
+
+            # Set action signal
+            self.machine_signal.set_value(False)
+            time.sleep(0.3)
+            self.machine_signal.set_value(True)
+            self.machine_id.set_value(machine_id)
+
+        except Exception as e:
+            _logger.error(f"Error updating machine when sending machine selection: {e}")
+            result["success"] = False
+            result["error"] = str(e)
+        return result
+
 
     @classmethod
     def get_client(cls):

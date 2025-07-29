@@ -565,6 +565,23 @@ def yolo_inference_api():
             'total_detections': 0
         }), 500
 
+@app.route('/select_machine', methods=['POST'])
+def select_machine():
+    try:
+        selected_machine = request.json.get('machineId')
+        result = ua_client.machine_selection(int(selected_machine))
+
+        if result['success']:
+            print(f"[DEBUG] Task executed successfully")
+        else:
+            print(f"[DEBUG] Task failed: {result['error']}")
+        return jsonify(success=True)
+
+    except Exception as e:
+        print(f"Error sending machine Id to Robot: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, error=str(e)), 500
+
 
 def enqueue_robot_task(x, y, m, n, lv, mach_id = 0):
     """
