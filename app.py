@@ -163,7 +163,7 @@ def new_annotation():
 
 
 
-@app.route('/video_annotation', methods = ['GET', 'POST'])
+@app.route('/video_annotation')
 def video_annotation():
     m = M
     n = N
@@ -374,17 +374,17 @@ def new_actions():
 
 @app.route('/to_robot_video')
 def to_video_cleaning():
-    return redirect(url_for('robot_video' ))
+    return redirect(url_for('robot_video' , m = M, n = N))
 
 @app.route("/to_robot_image")
 def to_image_cleaning():
     # return render_template("robot_image.html", m = M, n = N)
-    return redirect(url_for('image_cleaning'))
+    return redirect(url_for('image_cleaning' , m = M, n = N))
 
 @app.route("/to_video_annotation")
 def to_annotation():
     # return render_template("video_annotation.html",m = M, n = N)
-    return  redirect(url_for('video_annotation'))
+    return  redirect(url_for('video_annotation' , m = M, n = N))
 
 
 @app.route('/yolo_inference', methods=['POST'])
