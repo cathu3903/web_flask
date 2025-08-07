@@ -360,8 +360,8 @@ def new_actions():
             machine_id = annotation['machineId']
 
             # Enqueue the robot task, trigger the consumer
-            enqueue_robot_task(grid_x, grid_y, col_m, raw_n, lv, machine_id)
-
+            # enqueue_robot_task(grid_x, grid_y, col_m, raw_n, lv, machine_id)
+            enqueue_robot_task(grid_x, grid_y, col_m, raw_n, lv)
         db.session.commit()
         return jsonify(success = True)
 
@@ -593,7 +593,7 @@ def enqueue_robot_task(x, y, m, n, lv, mach_id = 0):
         "col_m": m,
         "raw_n": n,
         "lv": lv,
-        "mach_id": mach_id
+        # "mach_id": mach_id
     })
 
     print(f"Enqueued task: grid_x={x}, grid_y={y}, col_m={m}, raw_n={n}, lv={lv}, mach_id={mach_id}")
@@ -610,7 +610,7 @@ def execute_robot_task(grid_x, grid_y, col_m, raw_n, lv=0, mach_id=0):
             m=col_m,
             n=raw_n,
             lv=lv,
-            mach_id=mach_id
+            # mach_id=mach_id
         )
 
         if result["success"]:
@@ -628,12 +628,17 @@ def queue_consumer():
     Refactored task handler to use synchronous operations
     """
     print("Queue consumer started!!!")
+    queue_length = 0
+    last_m = -1
+    last_n = -1
+    # last_mid = -1
     while True:
         try:
             # Get task from queue with timeout
             try:
+                queue_length = robot_task_queue.qsize()
                 task = robot_task_queue.get(timeout=2)
-                print(f"[DEBUG] Task fetched: {task}")
+                print(f"[DEBUG] Task fetched: {task}, \n queue_length = {queue_length}")
                 # Execute the task
                 execute_robot_task(
                     task["grid_x"],
@@ -641,11 +646,22 @@ def queue_consumer():
                     task["col_m"],
                     task["raw_n"],
                     task["lv"],
-                    task["mach_id"]
+                    # task["mach_id"]
                 )
+                last_m = task["col_m"]
+                last_n = task["raw_n"]
             except Empty:
                 continue
-
+            if queue_length == 1:
+                print("[DEBUG] No tasks in queue, send the [END] signal")
+                execute_robot_task(
+                    -1,
+                    -1,
+                    last_m,
+                    last_n,
+                    0
+                )
+                queue_length = 0
             robot_task_queue.task_done()
 
         except Exception as e:

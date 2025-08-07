@@ -178,6 +178,7 @@ class UAClient:
             }
 
             # Reset action signal
+            time.sleep(0.3)
             self.start_signal.set_value(False)
 
             # Check values
@@ -219,10 +220,15 @@ class UAClient:
                 return result
 
             # Set action signal
-            self.machine_signal.set_value(False)
+            self.start_signal.set_value(False)
             time.sleep(0.3)
+            self.start_signal.set_value(True)
             self.machine_signal.set_value(True)
-            self.machine_id.set_value(machine_id)
+            if machine_id is not None:
+                self.machine_id.set_value(machine_id)
+            # Reset action signal
+            time.sleep(0.3)
+            self.start_signal.set_value(False)
 
         except Exception as e:
             _logger.error(f"Error updating machine when sending machine selection: {e}")
