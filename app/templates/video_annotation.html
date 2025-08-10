@@ -2,74 +2,66 @@
 <html>
 <head>
     <title>Video Annotation</title>
-    <link rel = "stylesheet" href= "{{ url_for('static', filename='css/CommonStyle.css')}}"> </link>
-    <link rel = "stylesheet" href="{{ url_for('static', filename='css/video-js-8.23.3/video-js.min.css')}}"></link>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/RobotVideoPageStyles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/video-js-8.23.3/video-js.min.css')}}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="{{ url_for('static', filename='js/video.min.js')}}"> </script>
-    <!-- <link href="//vjs.zencdn.net/7.10.2/video-js.min.css" rel="stylesheet">
-    <script src="//vjs.zencdn.net/7.10.2/video.min.js"></script> -->
 
 </head>
 <body>
     <div class="main_container">
-        <div id="video_container" class = "video_container">
-            <!-- video stream page-->
-            <!-- <img id="video_player" src = "{{ url_for('video_feed') }}" alt="preview of video stream" playing="true"> -->
+        <div class="content_wrapper">
 
-            <!-- <video id="video_player" src="{{ url_for('video_feed') }}" autoplay muted controlist="nodownload" oncontextmenu="return false;"></video> -->
-            <!-- <video id="video_player" src="" controls="controls" autoplay="autoplay"></video> -->
-
-            <!-- video page-->
-            <video id="video_player" autoplay="autoplay" controls="controls">
-                <source="" type="video/mp4">
-            </video>
-
-            <!-- <label for="video_file_input" class="file_input_label"></label>
-            <input type="file" id="video_file_input" accept="video/*"> -->
-
-            <canvas id="grid_overlay" class="grid_overlay"></canvas>
-
-        </div>
-        <div id="progress_tooltip" class="progress-tooltip"></div>
-        <div class="below_video_container">
-            <div class="button_group">
-                <button id="generateJSON">Export</button>
-                <button id="upload_button">Upload Video</button>
-                <button id="play_pause">Play/Pause</button>
-                <div class = "annotate_group">
-                    <button id="upload_annotation">Annotate</button>
+            <div class="video_section">
+                <div class="video_container no-video">
+                    <video id="video_player" class="video-js vjs-default-skin"
+                           width="100%" height="100%" controls preload="auto">
+                        <p class="vjs-no-js">
+                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
+                        </p>
+                    </video>
+                    <canvas id="grid_overlay" class="grid_overlay"></canvas>
+                    <input type="file" id="video_file_input" accept="video/*,.mov,.mp4,.avi,.mkv,.webm" style="display: none;">
                 </div>
-                <div>
-                    <button id="jump_to_robot_image">To image cleaning</button>
-                    <button id="jump_to_robot_video">To video cleaning</button>
+
+
+                <div class="video_controls">
+                    <button id="upload_button" class="btn btn-upload">Upload Video</button>
+                    <button id="play_pause" class="btn btn-play">Play</button>
+                    <button id="generateJSON" class="btn btn-ai">Export</button>
+                    <button id="upload_annotation" class="btn btn-model" style="display: none;">Annotate</button>
                 </div>
-                <input type="file" id="video_file_input" accept="video/*" style="display: none;">
             </div>
-            <div id = "status"> </div>
+
+            <div class="center_controls">
+                <button id="jump_to_robot_image" class="btn btn-jump">To Image Cleaning</button>
+                <button id="jump_to_robot_video" class="btn btn-jump">To Video Cleaning</button>
+            </div>
+
+            <div id="status"> </div>
         </div>
+
+        <div id="context_menu" class="dropdown-content">
+            <a href="#" data-color="white" class="dropdown">0 White</a>
+            <a href="#" data-color="green" class="dropdown">1 Green</a>
+            <a href="#" data-color="yellow" class="dropdown">2 Yellow</a>
+            <a href="#" data-color="blue" class="dropdown">3 Blue</a>
+            <a href="#" data-color="red" class="dropdown">4 Red</a>
+            <a id="clear_button" href="#" data-color="_clear_" class="dropdown">X Clear</a>
+            <a id="cancel_button" href="#" data-color="_cancel_" class="dropdown">Cancel</a>
+        </div>
+
     </div>
 
-    <div id = "context_menu" class = "dropdown-content" style="font-size: 1vw;">
-        <a href="#" data-color = "white" class="dropdown">0 White</a>
-        <a href="#" data-color = "green" class="dropdown">1 Green</a>
-        <a href="#" data-color = "yellow"  class="dropdown">2 Yellow</a>
-        <a href="#" data-color = "blue"  class="dropdown">3 Blue</a>
-        <a href="#" data-color = "red" class="dropdown">4 Red</a>
-        <a id="clear_button" href="#" data-color = "_clear_" class="dropdown">X Clear</a>
-        <a id="cancel_button" href="#" data-color = "_cancel_"  class="dropdown">Cancel</a>
-    </div>
-    <br>
-
-    <script src = "{{ url_for('static', filename='js/video_annotation.js')}}"> </script>
+    <script src="{{ url_for('static', filename='js/video_annotation.js')}}"> </script>
     <script>
         const M = {{m}};
         const N = {{n}};
     </script>
-    <!-- <script src="{{ url_for('static', filename='js/video.min.js')}}"> </script> -->
-    <!-- <script src="{{ url_for('static', filename='js/video.js')}}"> </script> -->
 
-    <form id = "annotation_form" action = "/new_annotation" method = "POST">
-        <input type = "hidden" id = "annotation_data" name = "annotation_data">
+    <form id="annotation_form" action="/new_annotation" method="POST">
+        <input type="hidden" id="annotation_data" name="annotation_data">
     </form>
 
 </body>

@@ -1,22 +1,29 @@
 let Annotations = [];
-
 let Current_grid = null;
 let Is_context_menu_just_shown = false;
 let flagAnnotate = false;      // flag of whether the user is allowed to annotate
 let Current_frame_data = null;
 let Current_cropped_image = [];
 let GridMatrix = [];
-
+let player = null;
+let playerInitialized = false;
 
 function initGrid(m , n)
 {
     var canvas = document.getElementById('grid_overlay');
-    // const videoElem = document.getElementById("video_player");
-    var ctx = canvas.getContext('2d');  // get the canvas context
-    const player = videojs('video_player');
-    const videoElem = player.el();
+    const playerElement = videojs('video_player');
+    
+    // Get the actual video element inside the video.js container
+    const videoElem = playerElement.el().querySelector('video');
+    
+    if (!videoElem) {
+        console.error('Video element not found');
+        return;
+    }
 
-    const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
+    // Get the bounding rectangle of the video element
+    const rect = videoElem.getBoundingClientRect();
+    
     GridMatrix = [];
 
     for(let i = 0; i < m; i ++)
@@ -28,24 +35,40 @@ function initGrid(m , n)
         }
     }
 
-
+    // Position the canvas to exactly overlay the video element
+    canvas.style.position = 'absolute';
+    canvas.style.top = rect.top + 'px';
+    canvas.style.left = rect.left + 'px';
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
     canvas.width = rect.width;
     canvas.height = rect.height;
-    // canvas.width = videoElem.videoWidth();
-    // canvas.height = videoElem.videoHeight();
+    canvas.style.pointerEvents = 'auto';
+    canvas.style.zIndex = '2';
 
-    ctx.clearRect(0, 0,canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgb(255, 0, 0)';   // set the color of the grids
-
-    for(let i = 1; i < m; i++)          // draw the vertical lines
-    {
-        const x = (canvas.width / m) * i;   // calculate the horizontal position of the line
-        ctx.beginPath();                // Create a new path
-        ctx.moveTo(x, 0);               // Begin from the top
-        ctx.lineTo(x, canvas.height);   // To the other side of the video window
-        ctx.stroke();                   // Draw the line
+    // Use relative positioning to handle parent container
+    const parent = videoElem.offsetParent;
+    if (parent) {
+        const parentRect = parent.getBoundingClientRect();
+        canvas.style.top = (rect.top - parentRect.top) + 'px';
+        canvas.style.left = (rect.left - parentRect.left) + 'px';
     }
 
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgb(255, 0, 0)';   // set the color of the grids
+
+    // Draw vertical grid lines
+    for(let i = 1; i < m; i++)
+    {
+        const x = (canvas.width / m) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+
+    // Draw horizontal grid lines
     for(let i = 1; i < n; i++)
     {
         const y = (canvas.height / n) * i;
@@ -56,30 +79,207 @@ function initGrid(m , n)
     }
 }
 
+// Initialize video player
+function initVideoPlayer() {
+    const videoElement = document.getElementById('video_player');
+    
+    // Dispose of existing player if it exists
+    if (window.videojs && window.videojs.getPlayer) {
+        try {
+            const existingPlayer = window.videojs.getPlayer('video_player');
+            if (existingPlayer) {
+                existingPlayer.dispose();
+            }
+        } catch (e) {
+            console.log('No existing player to dispose');
+        }
+    }
+    
+    // Configure Video.js options
+    const options = {
+        html5: {
+            hls: {
+                overrideNative: true
+            }
+        },
+        flash: {
+            hls: {
+                overrideNative: true
+            }
+        },
+        fluid: true,
+        responsive: true,
+        controls: true,
+        preload: 'auto',
+        playbackRates: [0.5, 1, 1.5, 2],
+        techOrder: ['html5']
+    };
+    
+    try {
+        player = videojs(videoElement, options);
+        playerInitialized = true;
+        
+        // Listen to player events
+        player.on('pause', PlayerPaused);
+        player.on('play', PlayerPlaying);
+        player.on('loadedmetadata', onVideoLoaded);
+        player.on('canplay', onVideoCanPlay);
+        player.on('error', onVideoError);
+        player.on('resize', onVideoResize);
+        
+        // Set initial state
+        player.ready(() => {
+            console.log('Video player is ready');
+            updatePlayPauseButtonState();
+        });
+        
+        return player;
+    } catch (error) {
+        console.error('Error initializing video player:', error);
+        return null;
+    }
+}
+
+// Video event handlers
+function onVideoLoaded() {
+    console.log("Video metadata loaded");
+    
+    try {
+        console.log("Video dimensions:", player.videoWidth(), "x", player.videoHeight());
+        
+        // Delay adjustment to ensure video dimension info is available
+        setTimeout(() => {
+            adjustVideoContainer();
+            initGrid(M, N);
+        }, 100);
+    } catch (error) {
+        console.error('Error handling video loaded event:', error);
+    }
+}
+
+function onVideoCanPlay() {
+    console.log("Video can play");
+    // Reinitialize grid when video can play
+    setTimeout(() => {
+        initGrid(M, N);
+    }, 50);
+}
+
+function onVideoError() {
+    console.error("Video error occurred");
+    const error = player.error();
+    if (error) {
+        console.error("Video.js error:", error.message);
+    }
+}
+
+function onVideoResize() {
+    console.log('Video resize event triggered');
+    adjustVideoContainer();
+    // Update grid overlay when video is resized
+    setTimeout(() => {
+        initGrid(M, N);
+    }, 50);
+}
+
+// Dynamically adjust video container size
+function adjustVideoContainer() {
+    const videoSection = document.querySelector('.video_section');
+    const videoContainer = document.querySelector('.video_container');
+    
+    if (!player || !videoSection || !videoContainer) return;
+    
+    try {
+        const videoWidth = player.videoWidth();
+        const videoHeight = player.videoHeight();
+        
+        if (videoWidth > 0 && videoHeight > 0) {
+            // Mark as video state
+            videoContainer.classList.add('has-video');
+            videoContainer.classList.remove('no-video');
+            videoSection.classList.add('video-loaded');
+            
+            // Calculate video aspect ratio
+            const videoAspectRatio = videoWidth / videoHeight;
+            
+            // Get actual width of video area (minus padding)
+            const sectionPadding = 60; // 30px on each side
+            const availableWidth = videoSection.offsetWidth - sectionPadding;
+            
+            // Calculate maximum available height (60% of screen height)
+            const maxHeight = window.innerHeight * 0.6;
+            
+            // Calculate height based on aspect ratio
+            let newHeight = availableWidth / videoAspectRatio;
+            
+            // Limit maximum height
+            if (newHeight > maxHeight) {
+                newHeight = maxHeight;
+            }
+            
+            // Limit minimum height
+            const minHeight = 250;
+            if (newHeight < minHeight) {
+                newHeight = minHeight;
+            }
+            
+            // Set video container height
+            videoContainer.style.height = `${newHeight}px`;
+            
+            console.log(`Containers adjusted: ${availableWidth}x${newHeight}, aspect ratio: ${videoAspectRatio}`);
+        } else {
+            // Default state when no video
+            videoContainer.classList.add('no-video');
+            videoContainer.classList.remove('has-video');
+            videoSection.classList.remove('video-loaded');
+        }
+    } catch (error) {
+        console.error('Error adjusting video container:', error);
+    }
+}
+
+// Update play/pause button state
+function updatePlayPauseButtonState() {
+    const playPauseBtn = document.getElementById('play_pause');
+    if (!playPauseBtn || !player) return;
+    
+    try {
+        if (player.paused()) {
+            playPauseBtn.textContent = 'Play';
+            playPauseBtn.classList.remove('btn-pause');
+            playPauseBtn.classList.add('btn-play');
+        } else {
+            playPauseBtn.textContent = 'Pause';
+            playPauseBtn.classList.remove('btn-play');
+            playPauseBtn.classList.add('btn-pause');
+        }
+    } catch (error) {
+        console.error('Error updating play/pause button state:', error);
+    }
+}
+
 let selectedGridColor = 'rgba(255, 255, 0, 0.5)';
 function clickEvent(event) {
     event.preventDefault();
     event.stopPropagation();
-    // const videoElem = document.getElementById("video_player");
+    
     if(!flagAnnotate) return;                       // if the user is not allowed to annotate, return
-    const player = videojs('video_player');
-    const videoElem = player.el();
-    const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
+    
+    const playerElement = videojs('video_player');
+    const videoElem = playerElement.el().querySelector('video');
+    if (!videoElem) return;
+    
+    const rect = videoElem.getBoundingClientRect();
     const m = M;
     const n = N;
-    const mouse_x = event.clientX - rect.left;  // get the mouse position relative to the video element
-    const mouse_y = event.clientY - rect.top;   // same for y
-
-    event.stopPropagation();
+    const mouse_x = event.clientX - rect.left;
+    const mouse_y = event.clientY - rect.top;
 
     if(mouse_x >= 0 && mouse_x <= rect.width && mouse_y >= 0 && mouse_y <= rect.height)
     {
-        // event.preventDefault();     // prevent the default action (click)
-
-        const a = Math.floor(mouse_x / (rect.width / m));     // get the a and b coordinates of the mouse in grids
+        const a = Math.floor(mouse_x / (rect.width / m));
         const b = Math.floor(mouse_y / (rect.height / n));
 
-        // Current_grid = {x, y, m, n, a, b};
         const x1 = a * (rect.width / m) + 1;
         const y1 = b * (rect.height / n) + 1;
         const w = rect.width / m - 2;
@@ -92,13 +292,9 @@ function clickEvent(event) {
         contextMenu.style.display = "inline";
         contextMenu.style.left = event.clientX + "px";
         contextMenu.style.top = event.clientY + "px";
+        contextMenu.style.zIndex = "1000";
         Is_context_menu_just_shown = true;
         setTimeout(() => {Is_context_menu_just_shown = false;}, 100);
-
-        window.addEventListener("contextmenu", function (e) {
-            e.preventDefault();
-        });
-
     }
 }
 
@@ -128,16 +324,15 @@ function submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_fr
     .catch(error => {
         console.error("Error:", error);
     });
-
 }
 
 // capture the current frame
 function captureCurrentFrame()
 {
-    const player = videojs('video_player');
-    const videoElem = player.el().querySelector('video');
+    const playerElement = videojs('video_player');
+    const videoElem = playerElement.el().querySelector('video');
     const canvas = document.createElement('canvas');
-    const rect = videoElem.getBoundingClientRect();  // get the video element's bounding rectangle
+    const rect = videoElem.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
 
     canvas.width = rect.width;
@@ -153,7 +348,6 @@ function captureCurrentFrame()
 // crop the current frame according to the current grid
 function cropGridInImage(base64Image, grid)
 {
-
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
@@ -164,14 +358,11 @@ function cropGridInImage(base64Image, grid)
     ctx.drawImage(img, grid.x1, grid.y1, grid.w, grid.h);
     const croppedImageDataUrl = canvas.toDataURL('image/png');
     return croppedImageDataUrl;
-
 }
 
 function updateGrid(grid, level)
 {
-    // 1. clear the grid
-    // clearGrid(grid);
-    // 2. update the grid
+    // update the grid
     for(let i = 0; i < GridMatrix.length; i++)
     {
         if(i === grid.a)
@@ -185,17 +376,29 @@ function updateGrid(grid, level)
                 }
             }
         }
-
     }
-
 }
 
 // change the color of grid
 function choose_color(e)
 {
-    const player = videojs('video_player');
-    const videoElem = player.el();
+    const playerElement = videojs('video_player');
+    const videoElem = playerElement.el().querySelector('video');
+    if (!videoElem) return;
+    
+    const rect = videoElem.getBoundingClientRect();
     const canvas = document.getElementById("grid_overlay");
+    
+    // Update canvas position to match video element
+    canvas.style.position = 'absolute';
+    canvas.style.top = rect.top + 'px';
+    canvas.style.left = rect.left + 'px';
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    canvas.style.zIndex = '2';
+    
     const ctx = canvas.getContext("2d");
     if(e.target.tagName === "A"){
         e.preventDefault();
@@ -223,35 +426,29 @@ function choose_color(e)
                 stain_level = 2;
                 break;
             case "_cancel_":
-                this.style.display = "none";
+                const contextMenu = document.getElementById('context_menu');
+                contextMenu.style.display = "none";
                 return true;
             case "_clear_":
-                this.style.display = "none";
-                ctx.clearRect(Current_grid.x1, Current_grid.y1, Current_grid.w, Current_grid.h);
-                updateGrid(Current_grid, 0);
+                if (Current_grid) {
+                    ctx.clearRect(Current_grid.x1, Current_grid.y1, Current_grid.w, Current_grid.h);
+                    updateGrid(Current_grid, 0);
+                }
+                const clearMenu = document.getElementById('context_menu');
+                clearMenu.style.display = "none";
                 return true;
             default:
                 color = "rgba(255, 255, 255, 0.5)";
                 stain_level = 0;
         }
 
-
         if (Current_grid) {
             updateGrid(Current_grid, stain_level);
-            // const rect = videoElem.getBoundingClientRect(); // get the video element's bouding rectangle
             const {x1, y1, w, h, a, b} = Current_grid;
 
             ctx.fillStyle = color;
             ctx.fillRect(x1, y1, w, h);
 
-            // 5.23: Stop Clearing the rectangle after a delay, the rectangle will be cleared after play button is clicked
-            // // Clear the rectangle after a delay of 2s
-            // setTimeout(() => {
-            //     ctx.clearRect(x1, y1, w, h);
-            // }, 2000);
-
-            // 5.20: new idea
-            // instead of remove the annotation on the canvas layer, the color will disappear when play the video again
             document.getElementById('status').innerText = "Annotation Position" + " " + "/" + x1 + " " + y1 + " " + "Stain Level" + " " + stain_level;
 
             const annotation = {
@@ -264,13 +461,12 @@ function choose_color(e)
                 stainLevel: stain_level,
             };
             Annotations.push(annotation);
-            // submitAnnotation(annotation);
             let cropped_img = cropGridInImage(Current_frame_data, Current_grid);
             Current_cropped_image.push(cropped_img);
 
-            this.style.display = "none";
+            const contextMenu = document.getElementById('context_menu');
+            contextMenu.style.display = "none";
         }
-
     }
 }
 
@@ -293,85 +489,106 @@ function generateJSON(){
     })
     .catch(error => {
         console.error(error);
-    })
+    });
 }
-
 
 function PlayerPaused()
 {
-    const player = videojs('video_player');
-    if (player.pause){
+    const playerElement = videojs('video_player');
+    if (playerElement.paused()){
         console.log("Player is paused.");
 
         // allow user to annotate
         flagAnnotate = true;
         document.getElementById('upload_annotation').style.display = "inline";
         Current_frame_data = captureCurrentFrame();
+        updatePlayPauseButtonState();
+        
+        // Reinitialize grid when paused
+        setTimeout(() => {
+            initGrid(M, N);
+        }, 50);
     }
 }
 
 function PlayerPlaying()
 {
-    const player = videojs('video_player');
-    if (player.play){
+    const playerElement = videojs('video_player');
+    if (!playerElement.paused()){
         console.log("Player is playing.");
         flagAnnotate = false;
         document.getElementById('upload_annotation').style.display = "none";
+        updatePlayPauseButtonState();
     }
 }
 
 function togglePlayPause()
 {
-    const player = videojs('video_player');
-    if (player) {
-        if (player.paused())
+    const playerElement = videojs('video_player');
+    if (playerElement) {
+        if (playerElement.paused())
         {
-            player.play();
-            initGrid(M, N);
+            playerElement.play();
         }
         else
         {
-            player.pause();
+            playerElement.pause();
         }
+        updatePlayPauseButtonState();
     }
 }
 
+function handleVideoUpload(file) {
+    if (!file) return;
+    
+    try {
+        const videoURL = URL.createObjectURL(file);
+        
+        // Set video source
+        player.src({
+            type: file.type,
+            src: videoURL
+        });
+        
+        // Reload and play
+        player.load();
+        player.play();
+        
+        console.log('Video uploaded successfully');
+        document.getElementById('status').innerText = 'Video uploaded and loading...';
+        
+    } catch (error) {
+        console.error('Error uploading video:', error);
+        document.getElementById('status').innerText = 'Error uploading video';
+    }
+}
 
 document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoaded to secure the listen functions are binded after the DOM loaded
 {
     const contextMenu = document.getElementById('context_menu');
-    const container = document.getElementById('video_container');
     const fileInput = document.getElementById("video_file_input");
-    // const videoElem = document.getElementById("video_player");
-    const player = videojs('video_player');
-    const videoElem = player.el();
     const annotateUpload = document.getElementById("upload_annotation");
     const generateJSONBtn = document.getElementById("generateJSON");
     const playPauseBtn = document.getElementById('play_pause');
-    var foo = new EventTarget();
-    // const tooltip = document.getElementById('progress_tooltip');
+    const videoContainer = document.querySelector('.video_container');
 
-    // const progressControl = player.contorlBar.progressControl;
-
-
-    player.on('pause', PlayerPaused);
-    player.on('play', PlayerPlaying);
+    // Initialize video player
+    initVideoPlayer();
 
     contextMenu.addEventListener("click", choose_color);
 
-    document.getElementById('video_container').addEventListener('click', clickEvent);
-    // document.getElementById('video_container').addEventListener('click', function (event) {
-
-    //     clickEvent(event);
-    // });
-
-
-
-    document.addEventListener("dragover", function(event) {
-        event.preventDefault();
+    // Video container click event for annotations
+    videoContainer.addEventListener('click', function (event) {
+        // Only trigger if we're clicking directly on the video element
+        const playerElement = videojs('video_player');
+        const videoElem = playerElement.el().querySelector('video');
+        
+        if (videoElem && (event.target === videoElem || event.target === videoContainer)) {
+            clickEvent(event);
+        }
     });
 
-    // Click outside to hide the window
+    // Click outside to hide the context menu
     document.addEventListener('click', function (event){
         if(Is_context_menu_just_shown) {
             Is_context_menu_just_shown = false;
@@ -385,55 +602,31 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         }
     });
 
-    // add a listener to adjust the overlay of the button below the video window
-    videoElem.addEventListener("loadedmetadata", () =>{
-        console.log("Video metadata loaded.");
-        console.log("videoWidth:", player.videoWidth);
-        console.log("videoHeight:", player.videoHeight);
-        container.style.height = `${player.el().offsetHeight}px`;     // get the html element of the video by template literals
-        initGrid(M, N);
-    });
-
-    // change the grid size when the window is resized
-    window.addEventListener("resize", () =>{
-        if( player.videoWidth() > 0){
-            container.style.height = `${player.el().offsetHeight}px`;
-            initGrid(M, N);
-        }
-    });
-
+    // File input change handler
     fileInput.addEventListener("change", function(event) {
         const file = event.target.files[0];
         if (file) {
-            const videoURL = URL.createObjectURL(file);
-            player.src({type: 'video/mp4', src: videoURL});
-            player.load();
-            player.play();
-            // videoElem.src = videoURL;
-            // videoElem.load();
-            // videoElem.play();
-            player.on('canplay', () => {
-                initGrid(M, N);
-            });
+            handleVideoUpload(file);
         }
     });
 
-    // Drag the video above the window
-    document.addEventListener("drop", function(event) {
+    // Drag and drop handling
+    videoContainer.addEventListener("dragover", function(event) {
         event.preventDefault();
+        videoContainer.classList.add('drag-over');
+    });
+
+    videoContainer.addEventListener("dragleave", function() {
+        videoContainer.classList.remove('drag-over');
+    });
+
+    videoContainer.addEventListener("drop", function(event) {
+        event.preventDefault();
+        videoContainer.classList.remove('drag-over');
+        
         const file = event.dataTransfer.files[0];
         if (file && file.type.startsWith("video/")) {
-            const videoURL = URL.createObjectURL(file);
-            // videoElem.src = videoURL;
-            // videoElem.load();
-            // videoElem.play();
-            player.src({type: 'video/mp4', src: videoURL});
-            player.load();
-            player.play();
-
-            videoElem.addEventListener("canplay", () => {
-                initGrid(M, N);
-            });
+            handleVideoUpload(file);
         }
     });
 
@@ -453,16 +646,9 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         generateJSON();
     });
 
-    // bind click event on play_pause button
-    player.on('play', function() {
-        playPauseBtn.textContent = "Pause";
-    });
-    player.on('pause', () => {
-        playPauseBtn.textContent = "Play";
-    });
-
     playPauseBtn.addEventListener('click', togglePlayPause);
-    // control by Space
+    
+    // Control by Space key
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
             e.preventDefault();
@@ -470,7 +656,7 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         }
     });
 
-    // jump buttons
+    // Jump buttons
     document.getElementById('jump_to_robot_image').addEventListener('click', () => {
         window.location.href = '/to_robot_image';
     });
@@ -479,8 +665,14 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         window.location.href = '/to_robot_video';
     });
 
-
-
+    // Window resize handler
+    window.addEventListener('resize', function() {
+        if (player && player.videoWidth() > 0) {
+            setTimeout(() => {
+                initGrid(M, N);
+            }, 100);
+        }
+    });
 });
 
 

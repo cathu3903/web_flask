@@ -59,6 +59,7 @@ function initGrid(m , n)
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
     }
+    canvas.addEventListener('click', clickEvent);
 }
 
 let selectedGridColor = 'rgba(255, 255, 0, 0.5)';
@@ -152,21 +153,16 @@ function submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_fr
 // capture the current frame
 function captureCurrentFrame()
 {
-    // const player = videojs('video_player');
-    // const videoElem = player.el().querySelector('video');
-    const imgElement = document.getElementById("image_container"); // 替换为 image_container
-
+    const imgElement = document.getElementById("image_container");
     const canvas = document.createElement('canvas');
-    const rect = imgElement.getBoundingClientRect();  // get the video element's bounding rectangle
     const ctx = canvas.getContext('2d');
 
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-
+    // 使用图片实际尺寸
+    canvas.width = imgElement.naturalWidth;
+    canvas.height = imgElement.naturalHeight;
+    
     ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
-
     const frameDataUrl = canvas.toDataURL('image/png');
-
     return frameDataUrl;
 }
 
@@ -412,8 +408,7 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
 
     contextMenu.addEventListener("click", choose_color);
 
-    // add click event listener to image_container
-    container.addEventListener('click', clickEvent);
+
     // document.getElementById('video_container').addEventListener('click', function (event) {
 
     //     clickEvent(event);
@@ -539,11 +534,19 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
             const imgElement = document.getElementById("image_container");
             imgElement.src = imageURL;
             imgElement.style.display = "block";
-            imgElement.onload = () => {     // add init grid after image is loaded
-                initGrid(M, N);
+            imgElement.style.objectFit = "contain";
+            imgElement.style.width = "100%";
+            imgElement.style.height = "auto";
+            
+            imgElement.onload = () => {     
+
                 flagAnnotate = true;
                 document.getElementById('upload_annotation').style.display = "inline";
+                document.getElementById("image_placeholder").style.display = "none";
                 Current_frame_data = captureCurrentFrame();
+                // add click event listener to image_containe
+                // contextMenu.addEventListener('click', clickEvent);
+                initGrid(M, N);
             }
         }
     });
@@ -552,7 +555,7 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     document.getElementById('jump_to_robot_video').addEventListener('click', () => {
         window.location.href = '/to_robot_video';
     });
-    document.getElementById('jump_to_video_annotaion').addEventListener('click', () => {
+    document.getElementById('jump_to_video_annotation').addEventListener('click', () => {
         window.location.href = '/to_video_annotation';
     });
 
