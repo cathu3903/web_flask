@@ -8,6 +8,39 @@ let GridMatrix = [];
 let player = null;
 let playerInitialized = false;
 
+function redrawGrids(canvas, ctx)
+{
+    // Redraw all grid colors from GridMatrix
+    if (GridMatrix === []) {
+        return;
+    }
+    for(let i = 0; i < M; i++) {
+        for(let j = 0; j < N; j++) {
+            if(GridMatrix[i][j].stainLevel > 0) {
+                // Calculate cell position
+                const cellX = (canvas.width / M) * i;
+                const cellY = (canvas.height / N) * j;
+                const cellWidth = canvas.width / M;
+                const cellHeight = canvas.height / N;
+
+                // Set color based on stain level
+                let cellColor;
+                switch(GridMatrix[i][j].stainLevel) {
+                    case 1: cellColor = "rgba(0, 255, 0, 0.5)"; break;
+                    case 2: cellColor = "rgba(255, 255, 0, 0.5)"; break;
+                    case 3: cellColor = "rgba(0, 0, 255, 0.5)"; break;
+                    case 4: cellColor = "rgba(255, 0, 0, 0.5)"; break;
+                    default: cellColor = "rgba(255, 255, 255, 0.5)";
+                }
+
+                // Draw colored cell
+                ctx.fillStyle = cellColor;
+                ctx.fillRect(cellX, cellY, cellWidth, cellHeight);
+            }
+        }
+    }
+}
+
 function initGrid(m , n)
 {
     var canvas = document.getElementById('grid_overlay');
@@ -77,6 +110,7 @@ function initGrid(m , n)
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
     }
+    redrawGrids(canvas, ctx);
 }
 
 // Initialize video player
@@ -302,11 +336,50 @@ function submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_fr
     const form = document.getElementById('annotation_form');
     const input = document.getElementById('annotation_data');
 
+    // 从GridMatrix提取有效标注
+    const validAnnotations = [];
+    const validCroppedImages = [];
+    const canvas = document.getElementById("grid_overlay");
+    
+    for(let i = 0; i < M; i++) {
+        for(let j = 0; j < N; j++) {
+            if(GridMatrix[i][j].stainLevel > 0) {
+                // 计算网格位置
+
+                
+                const cellX = (canvas.width / M) * i;
+                const cellY = (canvas.height / N) * j;
+                const cellWidth = canvas.width / M;
+                const cellHeight = canvas.height / N;
+                
+                // 创建annotation对象
+                const annotation = {
+                    startX: cellX,
+                    startY: cellY,
+                    width: cellWidth,
+                    height: cellHeight,
+                    m: M,
+                    n: N,
+                    stainLevel: GridMatrix[i][j].stainLevel
+                };
+                
+                validAnnotations.push(annotation);
+                
+                // 截取对应区域图像
+                const cropped_img = cropGridInImage(
+                    Current_frame_data, 
+                    {x1: cellX, y1: cellY, w: cellWidth, h: cellHeight}
+                );
+                validCroppedImages.push(cropped_img);
+            }
+        }
+    }
+
     // transfer the annotation to JSON format
     input.value = JSON.stringify({
-        cropped: Current_cropped_image,
+        cropped: validCroppedImages,
         frame: Current_frame_data,
-        annotations: Annotations
+        annotations: validAnnotations
     });
 
     // Use fetch API to submit form asynchronously
@@ -315,11 +388,15 @@ function submitOneFrameAnnotation(Annotations, Current_cropped_image, Current_fr
         headers: {
             'Content-Type': 'application/json'
         },
-        body: input.value   // should use stringify()  to convert JSON to string
+        body: input.value
     })
     .then(response => response.json())
     .then(data => {
         console.log("Success:", data);
+        Annotations = [];
+        Current_cropped_image = [];
+        Current_frame_data = null;
+        GridMatrix = [];
     })
     .catch(error => {
         console.error("Error:", error);
@@ -398,7 +475,15 @@ function choose_color(e)
     canvas.width = rect.width;
     canvas.height = rect.height;
     canvas.style.zIndex = '2';
-    
+
+    // Handle parent container offset
+    const parent = videoElem.offsetParent;
+    if (parent) {
+        const parentRect = parent.getBoundingClientRect();
+        canvas.style.top = (rect.top - parentRect.top) + 'px';
+        canvas.style.left = (rect.left - parentRect.left) + 'px';
+    }
+
     const ctx = canvas.getContext("2d");
     if(e.target.tagName === "A"){
         e.preventDefault();
@@ -428,7 +513,8 @@ function choose_color(e)
             case "_cancel_":
                 const contextMenu = document.getElementById('context_menu');
                 contextMenu.style.display = "none";
-                return true;
+                Current_grid = null;
+                break;
             case "_clear_":
                 if (Current_grid) {
                     ctx.clearRect(Current_grid.x1, Current_grid.y1, Current_grid.w, Current_grid.h);
@@ -437,6 +523,7 @@ function choose_color(e)
                 const clearMenu = document.getElementById('context_menu');
                 clearMenu.style.display = "none";
                 return true;
+                break;
             default:
                 color = "rgba(255, 255, 255, 0.5)";
                 stain_level = 0;
@@ -446,23 +533,47 @@ function choose_color(e)
             updateGrid(Current_grid, stain_level);
             const {x1, y1, w, h, a, b} = Current_grid;
 
-            ctx.fillStyle = color;
-            ctx.fillRect(x1, y1, w, h);
+            // Clear canvas and redraw all annotations
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            redrawGrids(canvas, ctx);
+            
+            // Redraw grid lines
+            ctx.strokeStyle = 'rgb(255, 0, 0)';
+            ctx.lineWidth = 1;
+            
+            // Redraw vertical lines
+            for(let i = 1; i < M; i++) {
+                const x = (canvas.width / M) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            // Redraw horizontal lines
+            for(let i = 1; i < N; i++) {
+                const y = (canvas.height / N) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
 
             document.getElementById('status').innerText = "Annotation Position" + " " + "/" + x1 + " " + y1 + " " + "Stain Level" + " " + stain_level;
 
-            const annotation = {
-                startX: x1,
-                startY: y1,
-                width: w,
-                height: h,
-                m: M,
-                n: N,
-                stainLevel: stain_level,
-            };
-            Annotations.push(annotation);
-            let cropped_img = cropGridInImage(Current_frame_data, Current_grid);
-            Current_cropped_image.push(cropped_img);
+            // const annotation = {
+            //     startX: x1,
+            //     startY: y1,
+            //     width: w,
+            //     height: h,
+            //     m: M,
+            //     n: N,
+            //     stainLevel: stain_level,
+            // };
+            // Annotations.push(annotation);
+            // let cropped_img = cropGridInImage(Current_frame_data, Current_grid);
+            // Current_cropped_image.push(cropped_img);
 
             const contextMenu = document.getElementById('context_menu');
             contextMenu.style.display = "none";
@@ -506,6 +617,7 @@ function PlayerPaused()
         
         // Reinitialize grid when paused
         setTimeout(() => {
+            GridMatrix = [];
             initGrid(M, N);
         }, 50);
     }
@@ -519,6 +631,12 @@ function PlayerPlaying()
         flagAnnotate = false;
         document.getElementById('upload_annotation').style.display = "none";
         updatePlayPauseButtonState();
+        
+        // Clear annotations data when playing
+        Annotations = [];
+        Current_cropped_image = [];
+        Current_frame_data = null;
+        GridMatrix = [];  // Reset GridMatrix
     }
 }
 
@@ -571,7 +689,7 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
     const generateJSONBtn = document.getElementById("generateJSON");
     const playPauseBtn = document.getElementById('play_pause');
     const videoContainer = document.querySelector('.video_container');
-
+    const canvas = document.getElementById("grid_overlay");
     // Initialize video player
     initVideoPlayer();
 
@@ -583,7 +701,7 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
         const playerElement = videojs('video_player');
         const videoElem = playerElement.el().querySelector('video');
         
-        if (videoElem && (event.target === videoElem || event.target === videoContainer)) {
+        if (videoElem && (event.target === videoElem || event.target === videoContainer || event.target === canvas)) {
             clickEvent(event);
         }
     });
