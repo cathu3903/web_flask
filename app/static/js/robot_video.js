@@ -363,35 +363,53 @@ function adjustVideoContainer() {
             videoSection.classList.add('video-loaded');
             imageSection.classList.add('video-loaded');
             
-            // Calculate video aspect ratio
-            const videoAspectRatio = videoWidth / videoHeight;
+
             
-            // Get actual width of video area (minus padding)
+            // Get actual width of video area (minus padding), maximum available height (60% of screen height)
             const sectionPadding = 60; // 30px on each side
             const availableWidth = videoSection.offsetWidth - sectionPadding;
+            const availableHeight = window.innerHeight * 0.6;
             
-            // Calculate maximum available height (60% of screen height)
-            const maxHeight = window.innerHeight * 0.6;
+            // Calculate
+            // const maxHeight = window.innerHeight * 0.6;
+
+            // Calculate video aspect ratio
+            const videoAspectRatio = videoWidth / videoHeight;
+            const containerAspectRatio = availableWidth / availableHeight;
             
             // Calculate height based on aspect ratio
-            let newHeight = availableWidth / videoAspectRatio;
+            // let newHeight = availableWidth / videoAspectRatio;
+            let newWidth, newHeight;
             
-            // Limit maximum height
-            if (newHeight > maxHeight) {
-                newHeight = maxHeight;
+            // Limit maximum height and width
+            // if (newHeight > maxHeight) {
+            //     newHeight = maxHeight;
+            // }
+            if (containerAspectRatio > videoAspectRatio) {
+                // if the video is height greater than width
+                newWidth = availableWidth;
+                newHeight = newWidth / videoAspectRatio;
+            }
+            else {
+                // if the video is width greater than height
+                newHeight = availableHeight;
+                newWidth = newHeight * videoAspectRatio;
             }
             
             // Limit minimum height
             const minHeight = 250;
             if (newHeight < minHeight) {
                 newHeight = minHeight;
+                newWidth = newHeight * videoAspectRatio;
             }
             
             // Set video container height
             videoContainer.style.height = `${newHeight}px`;
+            videoContainer.style.weight = `${newWidth}px`;
             
             // Set image container to same height
             imageContainer.style.height = `${newHeight}px`;
+            imageContainer.style.weight = `${newWidth}px`;
             
             // Adjust player dimensions
             player.dimensions(availableWidth, newHeight);
