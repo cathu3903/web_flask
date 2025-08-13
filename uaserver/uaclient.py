@@ -34,7 +34,7 @@ class UAClient:
             cls._instance = super(UAClient, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, endpoint="opc.tcp://127.0.0.8:44840"):
+    def __init__(self, endpoint="opc.tcp://127.0.0.1:48022"):
         if not hasattr(self, 'initialized'):
             self.endpoint = endpoint
             self.client = None

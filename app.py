@@ -714,7 +714,7 @@ if __name__ == '__main__':
             db.create_all()
         global_model = None
         print("Starting Flask server...")
-        app.run(host="localhost", port=12345, debug=True, use_reloader=False)
+        app.run(host="127.0.0.8", port=12345, debug=True, use_reloader=False)
     except Exception as e:
         print(f"Error starting Flask server: {e}")
         traceback.print_exc()

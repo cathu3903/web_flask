@@ -25,7 +25,7 @@ def run():
         # setup server
         _server = Server()
 
-        _server.set_endpoint("opc.tcp://127.0.0.8:44840")
+        _server.set_endpoint("opc.tcp://127.0.0.1:48022")
 
         uri = "http://my_ua_server"
         idx =  _server.register_namespace(uri)
