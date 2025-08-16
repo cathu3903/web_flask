@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Robot Video</title>
+    <title>Robot Operator</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/RobotVideoPageStyles.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -25,7 +25,7 @@
 
             <div class="video_section">
                 <div class="video_container">
-                    <video id="video_player" class="video-js vjs-default-skin" 
+                    <video id="video_player" class="video-js vjs-default-skin"
                            width="100%" height="100%">
                         <p class="vjs-no-js">
                             To view this video please enable JavaScript, and consider upgrading to a web browser that
@@ -35,7 +35,7 @@
 
                     <input type="file" id="video_file_input" accept="video/*,.mov,.mp4,.avi,.mkv,.webm" style="display: none;">
                 </div>
-                
+
 
                 <div class="video_controls">
                     <button id="upload_video_button" class="btn btn-upload">Upload Video</button>
@@ -48,20 +48,23 @@
                             <a href="#" class="machine-option" data-machine-id="2">Machine 2</a>
                         </div>
                     </div>
-                    <!-- Model selector -->
-                    <div class="model-selector">
-                        <button id="model_selector_button" class="btn btn-model-selector">Upper Part ▼</button>
-                        <div id="model_dropdown" class="model-dropdown">
-                            <a href="#" class="model-option" data-model-id="0">Upper Part</a>
-                            <a href="#" class="model-option" data-model-id="1">Lower Part</a>
-                        </div>
-                    </div>
+{#                    <!-- Model selector -->#}
+{#                    <div class="model-selector">#}
+{#                        <button id="model_selector_button" class="btn btn-model-selector">Upper Part ▼</button>#}
+{#                        <div id="model_dropdown" class="model-dropdown">#}
+{#                            <a href="#" class="model-option" data-model-id="0">Upper Part</a>#}
+{#                            <a href="#" class="model-option" data-model-id="1">Lower Part</a>#}
+{#                        </div>#}
+{#                    </div>#}
                 </div>
-                <div class="video_controls ai-controls">
-                    <button id="ai_recognition_button" class="btn btn-ai">AI Recognition</button>
+                <div class="video_controls operator-controls">
+                    <button id="operator_labeling_button" class="btn btn-operator">Operator Labeling</button>
                 </div>
+{#                <div class="video_controls ai-controls">#}
+{#                    <button id="ai_recognition_button" class="btn btn-ai">AI Recognition</button>#}
+{#                </div>#}
             </div>
-            
+
 
             <div class="image_section">
                 <div class="image_container">
@@ -69,7 +72,7 @@
                     <canvas id="detection_canvas" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: auto; z-index: 2;"></canvas>
                     <img id="image_display" src="" alt="Robot action image" style="display: none; position: relative; z-index: 1;">
                     <div class="image_placeholder">
-                        <p>Detection results will appear here</p>
+                        <p>Chosen video frame will appear here</p>
                     </div>
                 </div>
                 <div class="image_controls">
@@ -81,8 +84,8 @@
 
         <div class="center_controls">
             <button id="jump_to_robot_image" class="btn btn-jump">To Robot Image Action</button>
+            <button id="jump_to_robot_video" class="btn btn-jump">To AI Recognition Action</button>
             <button id="jump_to_video_annotation" class="btn btn-jump">To Video Annotation</button>
-            <button id="jump_to_robot_operator" class='btn btn-jump'>To Manual Labeling Action</button>
     </div>
 
     <div id="context_menu" class="dropdown-content">
@@ -94,7 +97,7 @@
     </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/robot_video.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/robot_operator.js') }}"></script>
 
 
 </body>

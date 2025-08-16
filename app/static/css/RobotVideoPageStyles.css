@@ -261,6 +261,28 @@ html, body {
 .btn-ai-enabled:hover {
     background: linear-gradient(135deg, #1e7e34, #155724);
 }
+.btn-operator {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #212529;
+}
+
+.btn-operator:hover {
+    background: linear-gradient(135deg, #e0a800, #d39e00);
+}
+
+.btn-operator:disabled {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-operator-enabled {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    color: white;
+}
+
+.btn-operator-enabled:hover {
+    background: linear-gradient(135deg, #1e7e34, #155724);
+}
 
 .btn-model {
     background: linear-gradient(135deg, #6f42c1, #5a32a3);

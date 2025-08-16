@@ -27,7 +27,8 @@
 
             <div class="center_controls">
                 <button id="jump_to_video_annotation" class="btn btn-jump">To Video Annotation</button>
-                <button id="jump_to_robot_video" class="btn btn-jump">To Video Cleaning</button>
+                <button id="jump_to_robot_video" class="btn btn-jump">To AI Recognition Action</button>
+                <button id="jump_to_robot_operator" class='btn btn-jump'>To Manual Labeling Action</button>
             </div>
 
             <div id="status"> </div>
@@ -46,7 +47,7 @@
 
     <input type="file" id="image_file_input" accept="image/*" style="display: none;">
 
-    <script src="{{ url_for('static', filename='js/cleaning.js')}}"> </script>
+    <script src="{{ url_for('static', filename='js/robot_image.js')}}"> </script>
     <script>
         const M = {{m}};
         const N = {{n}};

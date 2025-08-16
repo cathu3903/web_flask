@@ -553,10 +553,14 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
 
     // jump buttons
     document.getElementById('jump_to_robot_video').addEventListener('click', () => {
-        window.location.href = '/to_robot_video';
+        window.location.href = '/robot_video';
     });
     document.getElementById('jump_to_video_annotation').addEventListener('click', () => {
-        window.location.href = '/to_video_annotation';
+        window.location.href = '/video_annotation';
+    });
+
+    document.getElementById('jump_to_robot_operator').addEventListener('click', ()=>{
+       window.location.href = '/robot_operator';
     });
 
 

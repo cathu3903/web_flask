@@ -776,12 +776,16 @@ document.addEventListener("DOMContentLoaded", function() // Used DOMContentLoade
 
     // Jump buttons
     document.getElementById('jump_to_robot_image').addEventListener('click', () => {
-        window.location.href = '/to_robot_image';
+        window.location.href = '/robot_image';
     });
 
     document.getElementById('jump_to_robot_video').addEventListener('click', () => {
-        window.location.href = '/to_robot_video';
+        window.location.href = '/robot_video';
     });
+
+    document.getElementById('jump_to_robot_operator').addEventListener('click', () => {
+        window.location.href = '/robot_operator';
+    })
 
     // Window resize handler
     window.addEventListener('resize', function() {
