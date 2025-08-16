@@ -13,7 +13,7 @@ let gridM = 10;
 let gridN = 10;
 let Is_context_menu_just_shown = false;
 let GlobalMachineId = 0;
-let GlobalModelId = 0; // 0 for upper part, 1 for lower part
+let GlobalModelId = 1; // 0 for upper part, 1 for lower part
 let currentGridA = null;
 let currentGridB = null;
 let visualDetectionId = null;
@@ -34,13 +34,15 @@ let GridMatrix = [];
 let GridDataMap = new Map();
 
 // Initialize grid
-function initGridData(m, n) {
+function initGridData(col_m, row_n) {
     GridMatrix = [];
     GridDataMap.clear();
+    gridM = col_m;
+    gridN = row_n;
     
-    for(let i = 0; i < m; i++) {
+    for(let i = 0; i < gridM; i++) {
         GridMatrix[i] = [];
-        for(let j = 0; j < n; j++) {
+        for(let j = 0; j < gridN; j++) {
             GridMatrix[i][j] = {
                 stainLevel: 0,
                 hasData: false
@@ -164,7 +166,7 @@ function getAllGridData() {
 // Initialize grid line drawing - Refer to initGrid function in video_annotation.js
 function initGridLines(m, n) {
     const canvas = document.getElementById('detection_canvas');
-    const imageDisplay = document.getElementById('image_display');
+    const imageDisplay = document.getElementById('rendered_image_display');
     
     if (!canvas || !imageDisplay) {
         console.error('Canvas or image display not found');
@@ -348,9 +350,10 @@ function adjustVideoContainer() {
     const videoSection = document.querySelector('.video_section');
     const imageSection = document.querySelector('.image_section');
     const videoContainer = document.querySelector('.video_container');
-    const imageContainer = document.querySelector('.image_container');
+    const rendered_imageContainer = document.getElementById('renderedimage_container');
+    const annotated_imageContainer = document.getElementById('annotated_image_container');
     
-    if (!player || !videoSection || !imageSection || !videoContainer || !imageContainer) return;
+    if (!player || !videoSection || !imageSection || !videoContainer || !rendered_imageContainer || !annotated_imageContainer) return;
     
     try {
         const videoWidth = player.videoWidth();
@@ -408,8 +411,12 @@ function adjustVideoContainer() {
             videoContainer.style.weight = `${newWidth}px`;
             
             // Set image container to same height
-            imageContainer.style.height = `${newHeight}px`;
-            imageContainer.style.weight = `${newWidth}px`;
+            annotated_imageContainer.style.height = `${newHeight}px`;
+            annotated_imageContainer.style.weight = `${newWidth}px`;
+            rendered_imageContainer.style.height = `${newHeight}px`;
+            rendered_imageContainer.style.weight = `${newWidth}px`;
+            // imageContainer.style.height = `${newHeight}px`;
+            // imageContainer.style.weight = `${newWidth}px`;
             
             // Adjust player dimensions
             player.dimensions(availableWidth, newHeight);
@@ -423,7 +430,9 @@ function adjustVideoContainer() {
             imageSection.classList.remove('video-loaded');
             
             // Reset image container height
-            imageContainer.style.height = '300px';
+            // imageContainer.style.height = '300px';
+            annotated_imageContainer.style.height = '300px';
+            rendered_imageContainer.style.height = '300px';
         }
     } catch (error) {
         console.error('Error adjusting video container:', error);
@@ -588,23 +597,27 @@ function captureCurrentFrame() {
 
 // Update image placeholder
 function updateImagePlaceholder(message) {
-    const placeholder = document.querySelector('.image_placeholder');
-    if (placeholder) {
-        placeholder.innerHTML = `<p>${message}</p>`;
-        placeholder.style.display = 'block';
+    // const placeholder = document.querySelector('.image_placeholder');
+    const annotated_placeholder = document.getElementById('annotated_placeholder');
+    const rendered_placeholder = document.getElementById('rendered_placeholder');
+
+    if (annotated_placeholder && rendered_placeholder) {
+        annotated_placeholder.innerHTML = `<p>${message}</p>`;
+        rendered_placeholder.innerHTML = `<p>${message}</p>`;
+
+        annotated_placeholder.style.display = 'block';
+        rendered_placeholder.style.display = 'block';
     }
     
     // Hide image and canvas
-    const imageDisplay = document.getElementById('image_display');
-    const canvas = document.getElementById('detection_canvas');
-    
-    if (imageDisplay) {
-        imageDisplay.style.display = 'none';
-    }
-    
-    if (canvas) {
-        canvas.style.display = 'none';
-    }
+    // const annotated_imageDisplay = document.getElementById('annotated_image_display');
+    // const rendered_imageDisplay = document.getElementById('rendered_image_display');
+    //
+    // if (annotated_imageDisplay && rendered_imageDisplay) {
+    //     annotated_imageDisplay.style.display = 'none';
+    //     rendered_imageDisplay.style.display = 'none';
+    // }
+
 }
 
 // Modified: Render grid based on detection results - Refer to choose_color function in video_annotation.js
@@ -615,11 +628,11 @@ function renderGridByResults(gridPositions) {
     }
 
     // Initialize grid data
-    initGridData(gridM, gridN);
+    initGridData(M, N);
     
     // Get canvas and image elements
     const canvas = document.getElementById('detection_canvas');
-    const imageDisplay = document.getElementById('image_display');
+    const imageDisplay = document.getElementById('rendered_image_display');
     
     if (!canvas || !imageDisplay) {
         console.error('Canvas or image display not found');
@@ -737,9 +750,23 @@ function clearGridRender() {
     GridDataMap.clear();
     
     // Reset GridMatrix
-    initGridData(gridM, gridN);
+    initGridData(M, N);
     
     console.log('Grid render cleared');
+}
+
+// New function to display annotated image in the new element
+function displayAnnotatedImage(imageData) {
+    const annotatedImageDisplay = document.getElementById('annotated_image_display');
+    // const placeholder = document.querySelector('.image_placeholder');
+    const placeholder = document.getElementById("annotated_placeholder");
+
+    if (annotatedImageDisplay && placeholder) {
+        // Hide placeholder, show annotated image
+        placeholder.style.display = 'none';
+        annotatedImageDisplay.style.display = 'block';
+        annotatedImageDisplay.src = imageData;
+    }
 }
 
 // Modified performAIRecognition function
@@ -790,9 +817,8 @@ async function performAIRecognition() {
             // Display recognition result image
             displayRecognitionResult(result.annotated_image);
             
-            // Update grid parameters
-            gridM = result.grid_m || 10;
-            gridN = result.grid_n || 10;
+            // Display annotated image in the new element
+            displayAnnotatedImage(result.annotated_image);
             
             // Store detection results and grid positions
             detectionResults = result.detections || [];
@@ -823,6 +849,7 @@ async function performAIRecognition() {
         } else {
             // If no recognition results, display original image
             displayRecognitionResult(Current_frame_data);
+            displayAnnotatedImage(Current_frame_data);
             updateDetectionInfo('No objects detected');
             updateStatus('AI Recognition completed - No objects found');
         }
@@ -860,7 +887,7 @@ function executeRobotAction() {
 async function sendGridPositionsToRobot(gridPositions) {
     try {
         // Get current image
-        const imageDisplay = document.getElementById('image_display');
+        const imageDisplay = document.getElementById('rendered_image_display');
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -965,17 +992,20 @@ function onGridClick(event) {
 
 // Modified: displayRecognitionResult function
 function displayRecognitionResult(imageData) {
-    const imageDisplay = document.getElementById('image_display');
-    const placeholder = document.querySelector('.image_placeholder');
+    const imageDisplay = document.getElementById('rendered_image_display');
+    // const placeholder = document.querySelector('.image_placeholder');
+    const annotated_placeholder = document.getElementById('annotated_placeholder');
+    const rendered_placeholder = document.getElementById('rendered_placeholder');
     const canvas = document.getElementById('detection_canvas');
 
 
-    if (imageDisplay && placeholder) {
+    if (imageDisplay && annotated_placeholder && rendered_placeholder) {
         // Clear previous grid rendering
         clearGridRender();
         
         // Hide placeholder, show image
-        placeholder.style.display = 'none';
+        annotated_placeholder.style.display = 'none';
+        rendered_placeholder.style.display = 'none';
         imageDisplay.style.display = 'block';
         imageDisplay.src = imageData;
         
@@ -1006,6 +1036,8 @@ function displayRecognitionResult(imageData) {
     }
 }
 
+
+
 // Status update function
 function updateStatus(message) {
     const statusElement = document.getElementById('status');
@@ -1027,7 +1059,7 @@ function handleGridClick(event){
     event.stopPropagation();
     
     const canvas = document.getElementById('detection_canvas');
-    const imageDisplay = document.getElementById('image_display');
+    const imageDisplay = document.getElementById('rendered_image_display');
     
     if (!canvas || !imageDisplay) return;
 
@@ -1286,7 +1318,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
     
     // Initialize grid data
-    initGridData(gridM, gridN);
+    initGridData(M, N);
     
     // Initialize video player
     initVideoPlayer();

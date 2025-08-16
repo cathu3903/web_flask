@@ -25,6 +25,14 @@ html, body {
     gap: 30px;
 }
 
+.main_title {
+    font-size: 2.5rem;
+    color: #333;
+    text-align: center;
+    margin: 50px 0;
+    font-weight: bold;
+}
+
 /* Video section - 80% width centered */
 .video_section {
     width: 80%;
@@ -124,18 +132,9 @@ html, body {
     position: relative;
     overflow: hidden;
     transition: height 0.3s ease;
-}
-
-/* Default image container height */
-.image_container {
-    height: 300px;
-    min-height: 300px;
-}
-
-/* When video exists, image container matches video container height */
-.image_section.video-loaded .image_container {
-    height: auto;
+    /* 修改：移除固定高度，使容器能根据内容自适应 */
     min-height: 200px;
+    height: auto;
 }
 
 .image_placeholder {
@@ -151,6 +150,15 @@ html, body {
     max-height: 100%;
     object-fit: contain;
     border-radius: 12px;
+}
+
+/* 新增：自适应尺寸的图片样式 */
+.auto-size-image {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 12px;
+    display: none;
 }
 
 /* Image control buttons */
@@ -433,8 +441,7 @@ html, body {
     }
     
     .image_container {
-        height: 200px;
-        min-height: 200px;
+        min-height: 150px;
     }
     
     .video_controls {

@@ -35,8 +35,8 @@ app.config['INFERENCE_IMAGE_SIZE'] = int(640)
 app.config['CONF_THRESHOLD'] = float(0.5)
 
 
-M = 10
-N = 10
+M = 40
+N = 15
 
 app.config['DATA_FOLDER'] = 'data'
 # make sure the data folder exists
@@ -285,6 +285,9 @@ def image_cleaning():
     return render_template('robot_image.html', m = m, n = n)
 
 @app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/robot_video', methods = ['GET', 'POST'])
 def robot_video():
     m = M

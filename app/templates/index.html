@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web-based Robot Cleaning System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/RobotVideoPageStyles.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+<body>
+    <div class="main_container">
+        <div class="content_wrapper">
+            <h1 class="main_title">Web-based Robot Cleaning System</h1>
+
+            <div class="center_controls">
+                <button id="jump_to_robot_video" class="btn btn-jump">To AI Recognition Action</button>
+                <button id="jump_to_robot_operator" class="btn btn-jump">To Manual Labeling Action</button>
+                <button id="jump_to_robot_image" class="btn btn-jump">To Single Image Labeling Action</button>
+                <button id="jump_to_video_annotation" class="btn btn-jump">To Video Annotation</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('jump_to_robot_video')?.addEventListener('click', function() {
+                window.location.href = '/robot_video';
+            });
+
+            document.getElementById('jump_to_robot_image')?.addEventListener('click', function() {
+                window.location.href = '/robot_image';
+            });
+
+            document.getElementById('jump_to_robot_operator')?.addEventListener('click', function() {
+                window.location.href = '/robot_operator';
+            });
+
+            document.getElementById('jump_to_video_annotation')?.addEventListener('click', function() {
+                window.location.href = '/video_annotation';
+            });
+        });
+    </script>
+</body>
+</html>
