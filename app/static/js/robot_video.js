@@ -39,7 +39,7 @@ function initGridData(col_m, row_n) {
     GridDataMap.clear();
     gridM = col_m;
     gridN = row_n;
-    
+
     for(let i = 0; i < gridM; i++) {
         GridMatrix[i] = [];
         for(let j = 0; j < gridN; j++) {
@@ -54,13 +54,13 @@ function initGridData(col_m, row_n) {
 // Add grid data
 function addGridData(a, b, gridInfo) {
     const key = `${a},${b}`;
-    
+
     // Update 2D array
     GridMatrix[a][b] = {
         stainLevel: gridInfo.stainLevel,
         hasData: true
     };
-    
+
     // Update Map
     GridDataMap.set(key, {
         startX: gridInfo.startX,
@@ -116,7 +116,7 @@ function updateGridLevel(a, b, stainLevel){
             const centerY = grid.startY + grid.height / 2;
 
             ctx.fillText(`${grid.detectionId}`, centerX, centerY - 8);
-            ctx.fillText(`manual`, centerX, centerY + 8);
+            //ctx.fillText(`manual`, centerX, centerY + 8);
             console.log(`updateGridLevel:${grid}`)
         }
     }
@@ -167,19 +167,19 @@ function getAllGridData() {
 function initGridLines(m, n) {
     const canvas = document.getElementById('detection_canvas');
     const imageDisplay = document.getElementById('rendered_image_display');
-    
+
     if (!canvas || !imageDisplay) {
         console.error('Canvas or image display not found');
         return;
     }
-    
+
     const ctx = canvas.getContext('2d');
     const rect = imageDisplay.getBoundingClientRect();
-    
+
     // Set canvas dimensions to match image display size
     canvas.width = rect.width;
     canvas.height = rect.height;
-    
+
     // Set canvas style position to overlay on image
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
@@ -187,14 +187,14 @@ function initGridLines(m, n) {
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     canvas.style.pointerEvents = 'auto'; // Allow click events
-    
+
     // Clear previous drawing
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Set grid line style
     ctx.strokeStyle = 'rgb(255, 0, 0)';
     ctx.lineWidth = 1;
-    
+
     // Draw vertical lines
     for (let i = 1; i < m; i++) {
         const x = (canvas.width / m) * i;
@@ -203,7 +203,7 @@ function initGridLines(m, n) {
         ctx.lineTo(x, canvas.height);
         ctx.stroke();
     }
-    
+
     // Draw horizontal lines
     for (let i = 1; i < n; i++) {
         const y = (canvas.height / n) * i;
@@ -218,23 +218,23 @@ function initGridLines(m, n) {
 function clearGridVisual(a, b) {
     const canvas = document.getElementById('detection_canvas');
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     const grid = getGridData(a, b);
-    
+
     const gridWidth = grid.width;
     const gridHeight = grid.height;
-    
+
     const startX = grid.startX;
     const startY = grid.startY;
-    
+
     // Clear this grid area
     ctx.clearRect(startX, startY, gridWidth, gridHeight);
-    
+
     // Redraw grid lines
     ctx.strokeStyle = 'rgb(255, 0, 0)';
     ctx.lineWidth = 1;
-    
+
     // Redraw the border of this grid
     ctx.strokeRect(startX, startY, gridWidth, gridHeight);
 }
@@ -242,13 +242,13 @@ function clearGridVisual(a, b) {
 // Initialize video player
 function initVideoPlayer() {
     const videoElement = document.getElementById('video_player');
-    
+
     // Check if already initialized
     if (playerInitialized && player) {
         console.log('Video player already initialized');
         return player;
     }
-    
+
     // Destroy existing player instance (if exists)
     if (window.videojs && window.videojs.getPlayer) {
         try {
@@ -260,7 +260,7 @@ function initVideoPlayer() {
             console.log('No existing player to dispose');
         }
     }
-    
+
     // Configure Video.js options
     const options = {
         fluid: true,
@@ -276,11 +276,11 @@ function initVideoPlayer() {
             }
         }
     };
-    
+
     try {
         player = videojs(videoElement, options);
         playerInitialized = true;
-        
+
         // Listen to player events
         player.on('pause', onPlayerPaused);
         player.on('play', onPlayerPlaying);
@@ -288,14 +288,14 @@ function initVideoPlayer() {
         player.on('canplay', onVideoCanPlay);
         player.on('error', onVideoError);
         player.on('resize', onVideoResize);
-        
+
         // Set initial state
         player.ready(() => {
             console.log('Video player is ready');
             updatePauseButtonState();
             updateAIRecognitionButton();
         });
-        
+
         return player;
     } catch (error) {
         console.error('Error initializing video player:', error);
@@ -307,7 +307,7 @@ function initVideoPlayer() {
 function updatePauseButtonState() {
     const pauseBtn = document.getElementById('pause_button');
     if (!pauseBtn || !player) return;
-    
+
     try {
         if (player.paused()) {
             pauseBtn.textContent = 'Play';
@@ -327,7 +327,7 @@ function updatePauseButtonState() {
 function updateAIRecognitionButton() {
     const aiButton = document.getElementById('ai_recognition_button');
     if (!aiButton) return;
-    
+
     try {
         if (flagAIRecognition && Current_frame_data) {
             // Enable button when paused and frame data exists
@@ -352,38 +352,38 @@ function adjustVideoContainer() {
     const videoContainer = document.querySelector('.video_container');
     const rendered_imageContainer = document.getElementById('renderedimage_container');
     const annotated_imageContainer = document.getElementById('annotated_image_container');
-    
+
     if (!player || !videoSection || !imageSection || !videoContainer || !rendered_imageContainer || !annotated_imageContainer) return;
-    
+
     try {
         const videoWidth = player.videoWidth();
         const videoHeight = player.videoHeight();
-        
+
         if (videoWidth > 0 && videoHeight > 0) {
             // Mark as video state
             videoContainer.classList.add('has-video');
             videoContainer.classList.remove('no-video');
             videoSection.classList.add('video-loaded');
             imageSection.classList.add('video-loaded');
-            
 
-            
+
+
             // Get actual width of video area (minus padding), maximum available height (60% of screen height)
             const sectionPadding = 60; // 30px on each side
             const availableWidth = videoSection.offsetWidth - sectionPadding;
             const availableHeight = window.innerHeight * 0.6;
-            
+
             // Calculate
             // const maxHeight = window.innerHeight * 0.6;
 
             // Calculate video aspect ratio
             const videoAspectRatio = videoWidth / videoHeight;
             const containerAspectRatio = availableWidth / availableHeight;
-            
+
             // Calculate height based on aspect ratio
             // let newHeight = availableWidth / videoAspectRatio;
             let newWidth, newHeight;
-            
+
             // Limit maximum height and width
             // if (newHeight > maxHeight) {
             //     newHeight = maxHeight;
@@ -398,18 +398,18 @@ function adjustVideoContainer() {
                 newHeight = availableHeight;
                 newWidth = newHeight * videoAspectRatio;
             }
-            
+
             // Limit minimum height
             const minHeight = 250;
             if (newHeight < minHeight) {
                 newHeight = minHeight;
                 newWidth = newHeight * videoAspectRatio;
             }
-            
+
             // Set video container height
             videoContainer.style.height = `${newHeight}px`;
             videoContainer.style.weight = `${newWidth}px`;
-            
+
             // Set image container to same height
             annotated_imageContainer.style.height = `${newHeight}px`;
             annotated_imageContainer.style.weight = `${newWidth}px`;
@@ -417,10 +417,10 @@ function adjustVideoContainer() {
             rendered_imageContainer.style.weight = `${newWidth}px`;
             // imageContainer.style.height = `${newHeight}px`;
             // imageContainer.style.weight = `${newWidth}px`;
-            
+
             // Adjust player dimensions
             player.dimensions(availableWidth, newHeight);
-            
+
             console.log(`Containers adjusted: ${availableWidth}x${newHeight}, aspect ratio: ${videoAspectRatio}`);
         } else {
             // Default state when no video
@@ -428,7 +428,7 @@ function adjustVideoContainer() {
             videoContainer.classList.remove('has-video');
             videoSection.classList.remove('video-loaded');
             imageSection.classList.remove('video-loaded');
-            
+
             // Reset image container height
             // imageContainer.style.height = '300px';
             annotated_imageContainer.style.height = '300px';
@@ -449,10 +449,10 @@ function onVideoResize() {
 function onPlayerPaused() {
     console.log("Video paused");
     updatePauseButtonState();
-    
+
     flagAIRecognition = true;
     Current_frame_data = captureCurrentFrame();
-    
+
     updateStatus('Video paused - AI Recognition available');
     updateAIRecognitionButton();
 }
@@ -460,27 +460,27 @@ function onPlayerPaused() {
 function onPlayerPlaying() {
     console.log("Video playing");
     updatePauseButtonState();
-    
+
     flagAIRecognition = false;
     Current_frame_data = null;
-    
+
     updateStatus('Video playing');
     updateAIRecognitionButton();
 }
 
 function onVideoLoaded() {
     console.log("Video metadata loaded");
-    
+
     try {
         console.log("Video dimensions:", player.videoWidth(), "x", player.videoHeight());
-        
+
         // Delay adjustment to ensure video dimension info is available
         setTimeout(() => {
             adjustVideoContainer();
             updatePauseButtonState();
             updateAIRecognitionButton();
         }, 100);
-        
+
         updateStatus('Video uploaded and playing');
     } catch (error) {
         console.error('Error in onVideoLoaded:', error);
@@ -489,7 +489,7 @@ function onVideoLoaded() {
 
 function onVideoCanPlay() {
     console.log("Video can play");
-    
+
     try {
         // Adjust container size again
         setTimeout(() => {
@@ -497,7 +497,7 @@ function onVideoCanPlay() {
             updatePauseButtonState();
             updateAIRecognitionButton();
         }, 100);
-        
+
         updateStatus('Video ready to play');
     } catch (error) {
         console.error('Error in onVideoCanPlay:', error);
@@ -506,7 +506,7 @@ function onVideoCanPlay() {
 
 function onVideoError(error) {
     console.error('Video error:', error);
-    
+
     try {
         // Only show error when there's an actual video source
         if (player && player.currentSrc() && player.currentSrc() !== '') {
@@ -526,7 +526,7 @@ function togglePlayPause() {
         console.error('Video player not initialized');
         return;
     }
-    
+
     try {
         if (player.paused()) {
             player.play().then(() => {
@@ -549,23 +549,23 @@ function togglePlayPause() {
 // Handle video upload
 function handleVideoUpload(file) {
     if (!file) return;
-    
+
     try {
         const videoURL = URL.createObjectURL(file);
-        
+
         // Set video source
         player.src({
             type: 'video/mp4',
             src: videoURL
         });
-        
+
         // Reload and play
         player.load();
         player.play();
-        
+
         console.log('Video uploaded successfully');
         updateStatus('Video uploaded and loading...');
-        
+
     } catch (error) {
         console.error('Error uploading video:', error);
         updateStatus('Error uploading video');
@@ -575,19 +575,19 @@ function handleVideoUpload(file) {
 // Capture current frame
 function captureCurrentFrame() {
     if (!player) return null;
-    
+
     try {
         const videoElem = player.el().querySelector('video');
         if (!videoElem) return null;
-        
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
+
         canvas.width = videoElem.videoWidth || videoElem.clientWidth;
         canvas.height = videoElem.videoHeight || videoElem.clientHeight;
-        
+
         ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
-        
+
         return canvas.toDataURL('image/png');
     } catch (error) {
         console.error('Error capturing current frame:', error);
@@ -605,10 +605,10 @@ function updateImagePlaceholder(message) {
         annotated_placeholder.innerHTML = `<p>${message}</p>`;
         rendered_placeholder.innerHTML = `<p>${message}</p>`;
 
-        annotated_placeholder.style.display = 'block';
-        rendered_placeholder.style.display = 'block';
+        annotated_placeholder.style.display = 'none';
+        rendered_placeholder.style.display = 'none';
     }
-    
+
     // Hide image and canvas
     // const annotated_imageDisplay = document.getElementById('annotated_image_display');
     // const rendered_imageDisplay = document.getElementById('rendered_image_display');
@@ -629,11 +629,11 @@ function renderGridByResults(gridPositions) {
 
     // Initialize grid data
     initGridData(M, N);
-    
+
     // Get canvas and image elements
     const canvas = document.getElementById('detection_canvas');
     const imageDisplay = document.getElementById('rendered_image_display');
-    
+
     if (!canvas || !imageDisplay) {
         console.error('Canvas or image display not found');
         return;
@@ -643,11 +643,11 @@ function renderGridByResults(gridPositions) {
     const renderGrid = () => {
         const ctx = canvas.getContext('2d');
         const rect = imageDisplay.getBoundingClientRect();
-        
+
         // Set canvas dimensions to match image display size
         canvas.width = rect.width;
         canvas.height = rect.height;
-        
+
         // Set canvas style position to overlay on image
         canvas.style.position = 'absolute';
         canvas.style.top = '0';
@@ -655,10 +655,10 @@ function renderGridByResults(gridPositions) {
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         canvas.style.pointerEvents = 'auto'; // Allow click events
-        
+
         // Clear previous drawing
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         // First draw grid lines
         initGridLines(gridM, gridN);
         // Initialize visual id
@@ -671,40 +671,40 @@ function renderGridByResults(gridPositions) {
             // a,b may be duplicated, need to deduplicate
             if (gridPositions.findIndex(pos => pos.a === a && pos.b === b) !== index)
             {return;}
-            
+
             // Calculate actual pixel position of grid - Refer to method in video_annotation.js
             const x1 = a * (canvas.width / gridM) + 1;
             const y1 = b * (canvas.height / gridN) + 1;
             const w = canvas.width / gridM - 2;
             const h = canvas.height / gridN - 2;
-            
+
             // Get corresponding detection result info
             const detection = detectionResults[id] || {};
             const className = detection.class_name || 'unknown';
-            
+
             // Default stainLevel = 1 (green)
             const stainLevel = 1;
             const color = stainLevelColors[stainLevel];
-            
+
             // Draw grid fill
             ctx.fillStyle = color;
             ctx.fillRect(x1, y1, w, h);
-            
+
             // Draw text identifier at grid center
             ctx.fillStyle = 'black';
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
+
             const centerX = x1 + w / 2;
             const centerY = y1 + h / 2;
-            
+
             // Draw detection ID and class name
             // Use visualId instead of detection id
-            ctx.fillText(`${visualDetectionId}`, centerX, centerY - 8);
-            ctx.fillText(`${className}`, centerX, centerY + 8);
+            ctx.fillText(`${visualDetectionId}`, centerX, centerY );
+            // ctx.fillText(`${className}`, centerX, centerY + 8);
             visualDetectionId ++;
-            
+
             // Store grid info using GridDataMap
             const gridInfo = {
                 startX: x1,
@@ -718,17 +718,17 @@ function renderGridByResults(gridPositions) {
                 className: className,
                 machineId: GlobalMachineId,
             };
-            
+
             // Add to GridDataMap
             addGridData(a, b, gridInfo);
-            
+
             console.log(`Rendered grid at (${a}, ${b}) for detection ${id} (${className})`);
         });
-        
+
         console.log(`Rendered ${gridPositions.length} grid positions`);
         console.log('GridDataMap:', GridDataMap);
     };
-    
+
     // If image already loaded, render directly
     if (imageDisplay.complete && imageDisplay.naturalWidth > 0) {
         renderGrid();
@@ -745,13 +745,13 @@ function clearGridRender() {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-    
+
     // Clear GridDataMap
     GridDataMap.clear();
-    
+
     // Reset GridMatrix
     initGridData(M, N);
-    
+
     console.log('Grid render cleared');
 }
 
@@ -775,21 +775,21 @@ async function performAIRecognition() {
         updateStatus('Please pause the video first for AI recognition');
         return;
     }
-    
+
     if (!Current_frame_data) {
         updateStatus('No frame data available');
         return;
     }
-    
+
     // Update image area display text to waiting state
     updateImagePlaceholder('Waiting for server result...');
     updateStatus('AI Recognition in progress...');
-    
+
     try {
         // Convert base64 image data to blob format
         const response = await fetch(Current_frame_data);
         const blob = await response.blob();
-        
+
         // Create FormData object to send image
         const formData = new FormData();
         formData.append('image', blob, 'frame.png');
@@ -799,36 +799,36 @@ async function performAIRecognition() {
             formData.append('model_id', 'lower_part_model');
         formData.append('image_size', '640');
         formData.append('conf_threshold', '0.3');
-        
+
         // Send to Flask backend
         const apiResponse = await fetch('/yolo_inference', {
             method: 'POST',
             body: formData
         });
-        
+
         if (!apiResponse.ok) {
             throw new Error(`HTTP error! status: ${apiResponse.status}`);
         }
-        
+
         const result = await apiResponse.json();
-        
+
         // Check if there are recognition results
         if (result.success && result.annotated_image) {
             // Display recognition result image
             displayRecognitionResult(result.annotated_image);
-            
+
             // Display annotated image in the new element
             displayAnnotatedImage(result.annotated_image);
-            
+
             // Store detection results and grid positions
             detectionResults = result.detections || [];
             const gridPositions = result.grid_positions || [];
-            
+
             // Delay rendering grid to ensure image is loaded
             setTimeout(() => {
                 renderGridByResults(gridPositions);
             }, 100);
-            
+
             // Update detection info, including grid position info
             if (result.detections && result.detections.length > 0) {
                 let infoText = `Found ${result.detections.length} objects:\n`;
@@ -837,14 +837,14 @@ async function performAIRecognition() {
                     infoText += `• ${detection.class_name} (confidence: ${(detection.confidence * 100).toFixed(1)}%) at grid (${gridPos.a}, ${gridPos.b})\n`;
                 });
                 updateDetectionInfo(infoText);
-                
+
                 // Output grid position info in console
                 console.log('Grid positions:', gridPositions);
                 console.log('GridDataMap:', GridDataMap);
             } else {
                 updateDetectionInfo('No objects detected');
             }
-            
+
             updateStatus('AI Recognition completed successfully');
         } else {
             // If no recognition results, display original image
@@ -853,7 +853,7 @@ async function performAIRecognition() {
             updateDetectionInfo('No objects detected');
             updateStatus('AI Recognition completed - No objects found');
         }
-        
+
     } catch (error) {
         console.error('Error during AI recognition:', error);
         updateStatus('AI Recognition failed: ' + error.message);
@@ -864,7 +864,7 @@ async function performAIRecognition() {
 // Modified: Execute robot action based on grid position - Use GridDataMap
 function executeRobotAction() {
     const allGridData = getAllGridData();
-    
+
     if (!allGridData || allGridData.length === 0) {
         updateStatus('No grid positions selected. Please run AI Recognition first.');
         return;
@@ -874,10 +874,10 @@ function executeRobotAction() {
     const firstGrid = allGridData[0];
     if (firstGrid) {
         const { a, b, className } = firstGrid;
-        
+
         console.log(`Executing robot action at grid position (${a}, ${b}) for ${className}`);
         updateStatus(`Executing robot action at grid (${a}, ${b}) for ${className}`);
-        
+
         // Send all grid positions to backend
         sendGridPositionsToRobot(allGridData);
     }
@@ -945,7 +945,7 @@ async function sendGridPositionsToRobot(gridPositions) {
                 annotations: annotations
             })
         });
-        
+
         if (response.ok) {
             const result = await response.json();
             console.log('Robot action result:', result);
@@ -964,19 +964,19 @@ async function sendGridPositionsToRobot(gridPositions) {
 function onGridClick(event) {
     const canvas = document.getElementById('detection_canvas');
     if (!canvas) return;
-    
+
     const rect = canvas.getBoundingClientRect();
-    
+
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-    
+
     // Calculate clicked grid coordinates
     const gridWidth = canvas.width / gridM;
     const gridHeight = canvas.height / gridN;
-    
+
     const a = Math.floor(mouseX / gridWidth);
     const b = Math.floor(mouseY / gridHeight);
-    
+
     // Check boundaries
     if (a >= 0 && a < gridM && b >= 0 && b < gridN) {
         if (hasGridData(a, b)) {
@@ -1002,13 +1002,13 @@ function displayRecognitionResult(imageData) {
     if (imageDisplay && annotated_placeholder && rendered_placeholder) {
         // Clear previous grid rendering
         clearGridRender();
-        
+
         // Hide placeholder, show image
         annotated_placeholder.style.display = 'none';
         rendered_placeholder.style.display = 'none';
         imageDisplay.style.display = 'block';
         imageDisplay.src = imageData;
-        
+
         // Ensure image fully loads before binding events
         imageDisplay.onload = () => {
             if (canvas) {
@@ -1016,12 +1016,12 @@ function displayRecognitionResult(imageData) {
                 canvas.width = imageDisplay.width;
                 canvas.height = imageDisplay.height;
                 canvas.style.display = 'block';
-                
+
                 // Remove possible old event listeners
                 canvas.removeEventListener('click', handleGridClick);
                 // Bind click event to support grid operations
                 canvas.addEventListener('click', handleGridClick);
-                
+
                 // Redraw grid lines
                 initGridLines(gridM, gridN);
             }
@@ -1057,10 +1057,10 @@ function updateDetectionInfo(message) {
 function handleGridClick(event){
     event.preventDefault();
     event.stopPropagation();
-    
+
     const canvas = document.getElementById('detection_canvas');
     const imageDisplay = document.getElementById('rendered_image_display');
-    
+
     if (!canvas || !imageDisplay) return;
 
     // Get click position relative to canvas
@@ -1085,11 +1085,11 @@ function handleGridClick(event){
             // Show menu
             const dropdown = document.getElementById('context_menu');
             dropdown.style.display = 'block';
-            
+
             // Use pageX/pageY and add 5px offset to prevent cursor occlusion
             dropdown.style.left = (event.pageX + 5) + 'px';
             dropdown.style.top = (event.pageY + 5) + 'px';
-            
+
             Is_context_menu_just_shown = true;
             setTimeout(() => {Is_context_menu_just_shown = false;}, 100);
         }
@@ -1105,18 +1105,18 @@ function handleGridClick(event){
 function handleContextMenuClick(event){
     event.preventDefault();
     event.stopPropagation();
-    
+
     const canvas = document.getElementById('detection_canvas');
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
-    
+
     if(event.target.tagName === "A" && currentGridA >= 0 && currentGridB >= 0) {
         let color;
         let stain_level;
         const a = currentGridA;
         const b = currentGridB;
-        
+
         switch(event.target.getAttribute("data-color")) {
             case "green":
                 color = "rgba(0,255,0,0.5)";
@@ -1136,13 +1136,13 @@ function handleContextMenuClick(event){
                     removeGridData(a, b);
                     console.log(`Removed grid data at (${a}, ${b})`);
                     updateStatus(`Removed grid at (${a}, ${b})`);
-                    
+
                     // Hide menu
                     const contextMenu = document.getElementById('context_menu');
                     if (contextMenu) {
                         contextMenu.style.display = 'none';
                     }
-                    
+
                     currentGridA = -1;
                     currentGridB = -1;
                     return true;
@@ -1154,19 +1154,19 @@ function handleContextMenuClick(event){
                 if (contextMenuReturn) {
                     contextMenuReturn.style.display = 'none';
                 }
-                
+
                 currentGridA = -1;
                 currentGridB = -1;
                 return;
         }
-        
+
         // For color change operations
         if (color && stain_level) {
             let grid = getGridData(a, b);
             if (grid) {
                 // Update grid level
                 updateGridLevel(a, b, stain_level);
-                
+
                 console.log(`Updated grid (${a}, ${b}) to stain level ${stain_level}`);
                 updateStatus(`Updated grid (${a}, ${b}) to stain level ${stain_level}`);
             }
@@ -1214,20 +1214,20 @@ function handleContextMenuClick(event){
 
                     // Draw detection class name (manual)
                     ctx.fillText(`${GlobalManualId}`, centerX, centerY - 8);
-                    ctx.fillText('manual', centerX, centerY + 8);
+                    // ctx.fillText('manual', centerX, centerY + 8);
 
                     console.log(`Added new grid at (${a}, ${b}) with detectionId ${GlobalManualId}`);
                     GlobalManualId ++;
                 }
             }
         }
-        
+
         // Hide menu
         const contextMenu = document.getElementById('context_menu');
         if (contextMenu) {
             contextMenu.style.display = 'none';
         }
-        
+
         currentGridA = -1;
         currentGridB = -1;
         this.style.display = "none";
@@ -1238,13 +1238,13 @@ function handleContextMenuClick(event){
 async function selectMachine(machineId) {
     GlobalMachineId = machineId;
     updateStatus(`Selected Machine ${GlobalMachineId}`);
-    
+
     // update the button text
     const selectorButton = document.getElementById('machine_selector_button');
     if (selectorButton) {
         selectorButton.textContent = `Machine ${machineId} ▼`;
     }
-    
+
     // hide the dropdown
     const dropdown = document.getElementById('machine_dropdown');
     if (dropdown) {
@@ -1281,13 +1281,13 @@ async function selectMachine(machineId) {
 function selectModel(modelId) {
     GlobalModelId = modelId;
     updateStatus(`Selected Model: ${modelId === 0 ? 'Upper Part' : 'Lower Part'}`);
-    
+
     // update the button text
     const selectorButton = document.getElementById('model_selector_button');
     if (selectorButton) {
         selectorButton.textContent = `${modelId === 0 ? 'Upper Part' : 'Lower Part'} ▼`;
     }
-    
+
     // hide the dropdown
     const dropdown = document.getElementById('model_dropdown');
     if (dropdown) {
@@ -1316,13 +1316,13 @@ function toggleModelDropdown() {
 // Bound events after DOM loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
-    
+
     // Initialize grid data
     initGridData(M, N);
-    
+
     // Initialize video player
     initVideoPlayer();
-    
+
     // Bind event listeners
     const uploadButton = document.getElementById('upload_video_button');
     const fileInput = document.getElementById('video_file_input');
@@ -1338,7 +1338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadButton.addEventListener('click', () => {
             fileInput.click();
         });
-        
+
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -1346,30 +1346,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Pause/Play button
     if (pauseButton) {
         pauseButton.addEventListener('click', togglePlayPause);
     }
-    
+
     // AI recognition button
     if (aiRecognitionButton) {
         aiRecognitionButton.addEventListener('click', performAIRecognition);
     }
-    
+
     // Execute button
     if (executeButton) {
         executeButton.addEventListener('click', executeRobotAction);
     }
-    
+
     // Machine selection dropdown menu
     const machineSelectorButton = document.getElementById('machine_selector_button');
     const machineOptions = document.querySelectorAll('.machine-option');
-    
+
     if (machineSelectorButton) {
         machineSelectorButton.addEventListener('click', toggleMachineDropdown);
     }
-    
+
     machineOptions.forEach(option => {
         option.addEventListener('click', function(e) {
             e.preventDefault();
@@ -1377,15 +1377,15 @@ document.addEventListener('DOMContentLoaded', function() {
             selectMachine(machineId);
         });
     });
-    
+
     // Model selection dropdown menu
     const modelSelectorButton = document.getElementById('model_selector_button');
     const modelOptions = document.querySelectorAll('.model-option');
-    
+
     if (modelSelectorButton) {
         modelSelectorButton.addEventListener('click', toggleModelDropdown);
     }
-    
+
     modelOptions.forEach(option => {
         option.addEventListener('click', function(e) {
             e.preventDefault();
@@ -1393,19 +1393,19 @@ document.addEventListener('DOMContentLoaded', function() {
             selectModel(modelId);
         });
     });
-    
+
     // Click elsewhere on page to close dropdown menus
     window.addEventListener('click', function(event) {
         const machineSelector = document.querySelector('.machine-selector');
         const modelSelector = document.querySelector('.model-selector');
-        
+
         if (machineSelector && !machineSelector.contains(event.target)) {
             const dropdown = document.getElementById('machine_dropdown');
             if (dropdown) {
                 dropdown.classList.remove('show');
             }
         }
-        
+
         if (modelSelector && !modelSelector.contains(event.target)) {
             const dropdown = document.getElementById('model_dropdown');
             if (dropdown) {
@@ -1413,14 +1413,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
+
     // Jump buttons
     if (jumpToImageButton) {
         jumpToImageButton.addEventListener('click', function() {
             window.location.href = '/robot_image';
         });
     }
-    
+
     if (jumpToAnnotationButton) {
         jumpToAnnotationButton.addEventListener('click', function() {
             window.location.href = '/video_annotation';
@@ -1432,14 +1432,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '/robot_operator';
         });
     }
-    
+
     console.log('Video player initialized successfully');
 
     // Bind context menu click event
     if(contextMenu){
         contextMenu.addEventListener('click', handleContextMenuClick);
     }
-    
+
     // Add global click event listener to hide menu
     document.addEventListener('click', (event) => {
         if (Is_context_menu_just_shown) {

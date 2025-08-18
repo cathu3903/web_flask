@@ -26,6 +26,10 @@ def run():
         _server = Server()
 
         _server.set_endpoint("opc.tcp://127.0.0.1:48022")
+        
+        # 设置安全策略为无安全策略，避免需要证书和私钥
+        # set the security policy to no security
+        _server.set_security_policy([ua.SecurityPolicyType.NoSecurity])
 
         uri = "http://my_ua_server"
         idx =  _server.register_namespace(uri)

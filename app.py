@@ -35,7 +35,7 @@ app.config['INFERENCE_IMAGE_SIZE'] = int(640)
 app.config['CONF_THRESHOLD'] = float(0.5)
 
 
-M = 30
+M = 40
 N = 15
 
 app.config['DATA_FOLDER'] = 'data'
@@ -468,27 +468,27 @@ def yolo_inference_api():
             img_str = base64.b64encode(buffered.getvalue()).decode()
             annotated_image = f"data:image/png;base64,{img_str}"
             
-            # 提取检测框信息
+            # extract grid info
             if result.boxes is not None:
                 boxes = result.boxes
                 
-                # 使用CUDA加速计算所有网格点
+                # Use CUDA acceleration
                 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
                 
-                # 创建所有网格中心点坐标
+                # grid center coordinates
                 grid_width = original_width / M
                 grid_height = original_height / N
-                
-                # 创建网格中心点坐标张量
+
+                # create grid center coordinates tensor
                 grid_x_coords = torch.arange(0.5 * grid_width, original_width, grid_width, device=device)
                 grid_y_coords = torch.arange(0.5 * grid_height, original_height, grid_height, device=device)
-                
-                # 创建网格点坐标网格
+
+                # create grid point coordinates
                 grid_xx, grid_yy = torch.meshgrid(grid_x_coords, grid_y_coords, indexing='ij')
                 grid_points_x = grid_xx.flatten()
                 grid_points_y = grid_yy.flatten()
-                
-                # 用于存储已添加的网格位置，避免重复
+
+                # Use to store added grid positions, avoid duplicates
                 added_positions = set()
                 
                 for i in range(len(boxes)):
@@ -506,53 +506,51 @@ def yolo_inference_api():
                     center_y = (y1 + y2) / 2
                     width = x2 - x1
                     height = y2 - y1
-                    
-                    # 使用CUDA加速计算哪些网格点在检测框内
-                    # 将检测框坐标移到GPU
+
+                    # Use CUDA acceleration
+                    # move the box coordinates to GPU
                     x1_tensor = torch.tensor(x1, device=device)
                     y1_tensor = torch.tensor(y1, device=device)
                     x2_tensor = torch.tensor(x2, device=device)
                     y2_tensor = torch.tensor(y2, device=device)
-                    
-                    # 检查所有网格点是否在检测框内
+
+                    # check if all the grids in the box
                     in_box_x = (grid_points_x >= x1_tensor) & (grid_points_x <= x2_tensor)
                     in_box_y = (grid_points_y >= y1_tensor) & (grid_points_y <= y2_tensor)
                     in_box = in_box_x & in_box_y
-                    
-                    # 获取在检测框内的网格点索引
+
+                    # get the indices of the grid points inside the box
                     inside_indices = torch.nonzero(in_box).flatten()
-                    
-                    # 记录是否找到了网格点
+
+                    # record if a grid point is found
                     found_grid_points = len(inside_indices) > 0
-                    
-                    # 将索引转换为网格坐标 (a, b)
+
+                    # transform to grid coordinates
                     for idx in inside_indices:
-                        # 计算网格坐标
-                        a = idx // N  # 列坐标
-                        b = idx % N   # 行坐标
-                        
-                        # 确保坐标在有效范围内
+                        a = idx // N  # column coordinate (0 to M-1)
+                        b = idx % N   # row coordinate (0 to N-1)
+
                         if 0 <= a < M and 0 <= b < N:
-                            # 检查这个网格位置是否已经添加过
-                            position_key = (a.item(), b.item())  # 转换为Python数值
+                            # check duplication
+                            position_key = (a.item(), b.item())  # change to python value
                             if position_key not in added_positions:
                                 grid_positions.append({
                                     'id': i,
-                                    'a': a.item(),  # 转换为Python数值
-                                    'b': b.item()   # 转换为Python数值
+                                    'a': a.item(),  # change to python value
+                                    'b': b.item()
                                 })
                                 added_positions.add(position_key)
                     
-                    # 如果没有找到任何网格点，则添加中心点所在的网格
+                    # If no grid points are found, use the center point as the grid position
                     if not found_grid_points:
                         center_grid_a = int(center_x // grid_width)  # column coordinate (0 to M-1)
                         center_grid_b = int(center_y // grid_height)  # row coordinate (0 to N-1)
                         
-                        # 确保网格坐标在有效范围内
+                        # make sure the grid position is within the grid
                         center_grid_a = min(max(center_grid_a, 0), M - 1)
                         center_grid_b = min(max(center_grid_b, 0), N - 1)
-                        
-                        # 检查这个网格位置是否已经添加过
+
+                        # check duplication
                         position_key = (center_grid_a, center_grid_b)
                         if position_key not in added_positions:
                             grid_positions.append({
@@ -561,8 +559,8 @@ def yolo_inference_api():
                                 'b': center_grid_b
                             })
                             added_positions.add(position_key)
-                    
-                    # 计算原始的中心点所在的网格（用于detection信息）
+
+                    # calculate the original center grid
                     center_grid_a = int(center_x // grid_width)  # column coordinate (0 to M-1)
                     center_grid_b = int(center_y // grid_height)  # row coordinate (0 to N-1)
                     
