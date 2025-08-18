@@ -37,10 +37,12 @@ let GridDataMap = new Map();
 function initGridData(m, n) {
     GridMatrix = [];
     GridDataMap.clear();
+    gridM = m;
+    gridN = n;
 
-    for(let i = 0; i < m; i++) {
+    for(let i = 0; i < gridM; i++) {
         GridMatrix[i] = [];
-        for(let j = 0; j < n; j++) {
+        for(let j = 0; j < gridN; j++) {
             GridMatrix[i][j] = {
                 stainLevel: 0,
                 hasData: false
@@ -113,8 +115,8 @@ function updateGridLevel(a, b, stainLevel){
             const centerX = grid.startX + grid.width / 2;
             const centerY = grid.startY + grid.height / 2;
 
-            ctx.fillText(`${grid.detectionId}`, centerX, centerY - 8);
-            ctx.fillText(`manual`, centerX, centerY + 8);
+            ctx.fillText(`${grid.detectionId}`, centerX, centerY);
+            // ctx.fillText(`manual`, centerX, centerY + 8);
             console.log(`updateGridLevel:${grid}`)
         }
     }
@@ -363,29 +365,19 @@ function adjustVideoContainer() {
             videoSection.classList.add('video-loaded');
             imageSection.classList.add('video-loaded');
 
-
-
             // Get actual width of video area (minus padding), maximum available height (60% of screen height)
             const sectionPadding = 60; // 30px on each side
             const availableWidth = videoSection.offsetWidth - sectionPadding;
             const availableHeight = window.innerHeight * 0.6;
 
-            // Calculate
-            // const maxHeight = window.innerHeight * 0.6;
-
             // Calculate video aspect ratio
             const videoAspectRatio = videoWidth / videoHeight;
             const containerAspectRatio = availableWidth / availableHeight;
 
-            // Calculate height based on aspect ratio
-            // let newHeight = availableWidth / videoAspectRatio;
             let newWidth, newHeight;
 
-            // Limit maximum height and width
-            // if (newHeight > maxHeight) {
-            //     newHeight = maxHeight;
-            // }
-            if (containerAspectRatio > videoAspectRatio) {
+            // Calculate height based on aspect ratio
+            if (containerAspectRatio < videoAspectRatio) {
                 // if the video is height greater than width
                 newWidth = availableWidth;
                 newHeight = newWidth / videoAspectRatio;
@@ -403,15 +395,15 @@ function adjustVideoContainer() {
                 newWidth = newHeight * videoAspectRatio;
             }
 
-            // Set video container height
+            // Set video container dimensions
             videoContainer.style.height = `${newHeight}px`;
-            videoContainer.style.weight = `${newWidth}px`;
+            videoContainer.style.width = `${newWidth}px`;
 
             // Set image container to same height
             imageContainer.style.height = `${newHeight}px`;
-            imageContainer.style.weight = `${newWidth}px`;
+            imageContainer.style.width = `${newWidth}px`;
 
-            // Adjust player dimensions
+            // Adjust player dimensions to fill container
             player.dimensions(availableWidth, newHeight);
 
             console.log(`Containers adjusted: ${availableWidth}x${newHeight}, aspect ratio: ${videoAspectRatio}`);
@@ -615,7 +607,7 @@ function renderGridByResults(gridPositions) {
     }
 
     // Initialize grid data
-    initGridData(gridM, gridN);
+    initGridData(M, N);
 
     // Get canvas and image elements
     const canvas = document.getElementById('detection_canvas');
@@ -688,8 +680,8 @@ function renderGridByResults(gridPositions) {
 
             // Draw detection ID and class name
             // Use visualId instead of detection id
-            ctx.fillText(`${visualDetectionId}`, centerX, centerY - 8);
-            ctx.fillText(`${className}`, centerX, centerY + 8);
+            ctx.fillText(`${visualDetectionId}`, centerX, centerY);
+            // ctx.fillText(`${className}`, centerX, centerY + 8);
             visualDetectionId ++;
 
             // Store grid info using GridDataMap
@@ -737,7 +729,7 @@ function clearGridRender() {
     GridDataMap.clear();
 
     // Reset GridMatrix
-    initGridData(gridM, gridN);
+    initGridData(M, N);
 
     console.log('Grid render cleared');
 }
@@ -1184,8 +1176,8 @@ function handleContextMenuClick(event){
                     const centerY = y1 + h / 2;
 
                     // Draw detection class name (manual)
-                    ctx.fillText(`${GlobalManualId}`, centerX, centerY - 8);
-                    ctx.fillText('manual', centerX, centerY + 8);
+                    ctx.fillText(`${GlobalManualId}`, centerX, centerY);
+                    // ctx.fillText('manual', centerX, centerY + 8);
 
                     console.log(`Added new grid at (${a}, ${b}) with detectionId ${GlobalManualId}`);
                     GlobalManualId ++;
@@ -1256,7 +1248,7 @@ function operatorLabeling() {
     }
 
     // Initialize grid data
-    initGridData(gridM, gridN);
+    initGridData(M, N);
     // Display raw image from the current video frame, and bind the click event
     displayRecognitionResult(Current_frame_data);
 
@@ -1304,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
 
     // Initialize grid data
-    initGridData(gridM, gridN);
+    initGridData(M, N);
 
     // Initialize video player
     initVideoPlayer();
@@ -1319,6 +1311,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const jumpToImageButton = document.getElementById('jump_to_robot_image');
     const jumpToAnnotationButton = document.getElementById('jump_to_video_annotation');
     const jumpToRobotVideoButton = document.getElementById('jump_to_robot_video');
+    const jumpToIndex = document.getElementById('jump_to_index');
     const contextMenu = document.getElementById('context_menu');
 
     if (uploadButton && fileInput) {
@@ -1421,6 +1414,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (jumpToRobotVideoButton) {
         jumpToRobotVideoButton.addEventListener('click', function() {
             window.location.href = '/robot_video';
+        });
+    }
+    if(jumpToIndex) {
+        jumpToIndex.addEventListener('click', function() {
+            window.location.href = '/';
         });
     }
 

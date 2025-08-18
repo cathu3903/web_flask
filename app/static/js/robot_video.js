@@ -408,13 +408,13 @@ function adjustVideoContainer() {
 
             // Set video container height
             videoContainer.style.height = `${newHeight}px`;
-            videoContainer.style.weight = `${newWidth}px`;
+            videoContainer.style.width = `${newWidth}px`;
 
             // Set image container to same height
             annotated_imageContainer.style.height = `${newHeight}px`;
-            annotated_imageContainer.style.weight = `${newWidth}px`;
+            annotated_imageContainer.style.width = `${newWidth}px`;
             rendered_imageContainer.style.height = `${newHeight}px`;
-            rendered_imageContainer.style.weight = `${newWidth}px`;
+            rendered_imageContainer.style.width = `${newWidth}px`;
             // imageContainer.style.height = `${newHeight}px`;
             // imageContainer.style.weight = `${newWidth}px`;
 
@@ -1332,6 +1332,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const jumpToImageButton = document.getElementById('jump_to_robot_image');
     const jumpToAnnotationButton = document.getElementById('jump_to_video_annotation');
     const jumpToOperatorButton = document.getElementById('jump_to_robot_operator');
+    const jumpToIndex = document.getElementById("jump_to_index");
     const contextMenu = document.getElementById('context_menu');
 
     if (uploadButton && fileInput) {
@@ -1430,6 +1431,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if(jumpToOperatorButton){
         jumpToOperatorButton.addEventListener('click', function() {
             window.location.href = '/robot_operator';
+        });
+    }
+
+    if(jumpToIndex) {
+        jumpToIndex.addEventListener('click', function() {
+            window.location.href = '/';
         });
     }
 

@@ -83,6 +83,7 @@
 
 
         <div class="center_controls">
+            <button id="jump_to_index" class="btn btn-jump">Homepage</button>
             <button id="jump_to_robot_video" class="btn btn-jump">To AI Recognition Action</button>
             <button id="jump_to_robot_image" class="btn btn-jump">To Single Image Labeling Action</button>
             <button id="jump_to_video_annotation" class="btn btn-jump">To Video Annotation</button>
@@ -98,7 +99,10 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/robot_operator.js') }}"></script>
-
+    <script>
+        const M = {{m}};
+        const N = {{n}};
+    </script>
 
 </body>
 </html>
